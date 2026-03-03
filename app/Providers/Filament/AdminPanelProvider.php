@@ -42,11 +42,16 @@ class AdminPanelProvider extends PanelProvider
             ])
             ->navigationGroups([
                 NavigationGroup::make('Restaurante')->icon('heroicon-o-building-storefront'),
-                NavigationGroup::make('Cocina')->icon('heroicon-o-fire'),
-                NavigationGroup::make('Carta & Menú')->icon('heroicon-o-book-open'),
-                NavigationGroup::make('Inventario')->icon('heroicon-o-archive-box'),
-                NavigationGroup::make('Personas')->icon('heroicon-o-users'),
-                NavigationGroup::make('Configuración')->icon('heroicon-o-cog-6-tooth'),
+                    NavigationGroup::make()
+                        ->label('Cocina'),
+                    NavigationGroup::make()
+                        ->label('Carta & Menú'),
+                    NavigationGroup::make()
+                        ->label('Inventario'),
+                    NavigationGroup::make()
+                        ->label('Personas'),
+                    NavigationGroup::make()
+                        ->label('Configuración'),
             ])
             ->discoverResources(in: app_path('Filament/Resources'), for: 'App\Filament\Resources')
             ->discoverPages(in: app_path('Filament/Pages'), for: 'App\Filament\Pages')

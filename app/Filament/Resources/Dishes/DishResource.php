@@ -17,10 +17,14 @@ use Filament\Tables\Table;
 class DishResource extends Resource
 {
     protected static ?string $model = Dish::class;
-
-    protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedRectangleStack;
-
+    protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedClipboardDocumentList;
     protected static ?string $recordTitleAttribute = 'name';
+
+    public static function getNavigationGroup(): ?string { return 'Carta & Menú'; }
+    public static function getNavigationSort(): ?int { return 2; }
+    public static function getNavigationLabel(): string { return 'Platos'; }
+    public static function getModelLabel(): string { return 'Plato'; }
+    public static function getPluralModelLabel(): string { return 'Platos'; }
 
     public static function form(Schema $schema): Schema
     {
@@ -34,17 +38,15 @@ class DishResource extends Resource
 
     public static function getRelations(): array
     {
-        return [
-            //
-        ];
+        return [];
     }
 
     public static function getPages(): array
     {
         return [
-            'index' => ListDishes::route('/'),
+            'index'  => ListDishes::route('/'),
             'create' => CreateDish::route('/create'),
-            'edit' => EditDish::route('/{record}/edit'),
+            'edit'   => EditDish::route('/{record}/edit'),
         ];
     }
 }

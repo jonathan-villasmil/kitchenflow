@@ -2,6 +2,9 @@
 
 namespace App\Filament\Resources\Tables\Schemas;
 
+use App\Models\Zone;
+use Filament\Forms\Components\Grid;
+use Filament\Forms\Components\Section;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
@@ -13,48 +16,100 @@ class TableForm
     {
         return $schema
             ->components([
-                Select::make('restaurant_id')
-                    ->relationship('restaurant', 'name')
-                    ->required(),
-                Select::make('zone_id')
-                    ->relationship('zone', 'name'),
-                TextInput::make('number')
-                    ->required(),
-                TextInput::make('capacity')
-                    ->required()
-                    ->numeric()
-                    ->default(4),
-                TextInput::make('pos_x')
-                    ->required()
-                    ->numeric()
-                    ->default(0.0),
-                TextInput::make('pos_y')
-                    ->required()
-                    ->numeric()
-                    ->default(0.0),
-                TextInput::make('width')
-                    ->required()
-                    ->numeric()
-                    ->default(80.0),
-                TextInput::make('height')
-                    ->required()
-                    ->numeric()
-                    ->default(80.0),
-                TextInput::make('shape')
-                    ->required()
-                    ->default('rectangle'),
-                Select::make('status')
-                    ->options([
-            'available' => 'Available',
-            'occupied' => 'Occupied',
-            'reserved' => 'Reserved',
-            'cleaning' => 'Cleaning',
-            'inactive' => 'Inactive',
-        ])
-                    ->default('available')
-                    ->required(),
-                Toggle::make('is_active')
-                    ->required(),
+                Grid::make(3)->schema([
+                    Section::make('Información de la mesa')
+                        ->columnSpan(2)
+                        ->schema([
+                            Grid::make(2)->schema([
+                                Select::make('restaurant_id')
+                                    ->label('Restaurante')
+                                    ->relationship('restaurant', 'name')
+                                    ->required()
+                                    ->searchable()
+                                    ->preload()
+                                    ->live(),
+
+                                Select::make('zone_id')
+                                    ->label('Zona / Sala')
+                                    ->options(fn ($get) =>
+                                        Zone::where('restaurant_id', $get('restaurant_id'))
+                                            ->pluck('name', 'id')
+                                    )
+                                    ->searchable()
+                                    ->placeholder('Sin zona'),
+                            ]),
+
+                            Grid::make(3)->schema([
+                                TextInput::make('number')
+                                    ->label('Número / Nombre')
+                                    ->required()
+                                    ->placeholder('Ej: 1, 2, Terraza-1'),
+
+                                TextInput::make('capacity')
+                                    ->label('Capacidad (personas)')
+                                    ->required()
+                                    ->numeric()
+                                    ->default(4)
+                                    ->minValue(1)
+                                    ->maxValue(50),
+
+                                Select::make('shape')
+                                    ->label('Forma')
+                                    ->options([
+                                        'rectangle' => '▭ Rectangular',
+                                        'circle'    => '⭕ Circular',
+                                        'square'    => '□ Cuadrada',
+                                    ])
+                                    ->default('rectangle')
+                                    ->required(),
+                            ]),
+
+                            Select::make('status')
+                                ->label('Estado')
+                                ->options([
+                                    'available' => '✅ Disponible',
+                                    'occupied'  => '🔴 Ocupada',
+                                    'reserved'  => '🟡 Reservada',
+                                    'cleaning'  => '🧹 En limpieza',
+                                    'inactive'  => '⛔ Inactiva',
+                                ])
+                                ->default('available')
+                                ->required(),
+                        ]),
+
+                    Section::make('Posición en plano')
+                        ->columnSpan(1)
+                        ->description('Coordenadas para el plano visual del restaurante')
+                        ->schema([
+                            TextInput::make('pos_x')
+                                ->label('Posición X')
+                                ->numeric()
+                                ->default(0)
+                                ->step(1),
+
+                            TextInput::make('pos_y')
+                                ->label('Posición Y')
+                                ->numeric()
+                                ->default(0)
+                                ->step(1),
+
+                            TextInput::make('width')
+                                ->label('Ancho (px)')
+                                ->numeric()
+                                ->default(80)
+                                ->step(10),
+
+                            TextInput::make('height')
+                                ->label('Alto (px)')
+                                ->numeric()
+                                ->default(80)
+                                ->step(10),
+
+                            Toggle::make('is_active')
+                                ->label('Mesa activa')
+                                ->default(true),
+                        ]),
+                ]),
             ]);
     }
 }

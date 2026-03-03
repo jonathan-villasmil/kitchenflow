@@ -17,11 +17,13 @@ use Filament\Tables\Table;
 class OrderResource extends Resource
 {
     protected static ?string $model = Order::class;
-
-    protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedRectangleStack;
-
     protected static ?string $recordTitleAttribute = 'number';
 
+    public static function getNavigationGroup(): ?string { return 'Restaurante'; }
+    public static function getNavigationSort(): ?int { return 3; }
+    public static function getNavigationLabel(): string { return 'Pedidos'; }
+    public static function getModelLabel(): string { return 'Pedido'; }
+    public static function getPluralModelLabel(): string { return 'Pedidos'; }
     public static function form(Schema $schema): Schema
     {
         return OrderForm::configure($schema);

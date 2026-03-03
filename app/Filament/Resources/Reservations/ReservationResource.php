@@ -17,11 +17,13 @@ use Filament\Tables\Table;
 class ReservationResource extends Resource
 {
     protected static ?string $model = Reservation::class;
-
-    protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedRectangleStack;
-
     protected static ?string $recordTitleAttribute = 'guest_name';
 
+    public static function getNavigationGroup(): ?string { return 'Restaurante'; }
+    public static function getNavigationSort(): ?int { return 2; }
+    public static function getNavigationLabel(): string { return 'Reservas'; }
+    public static function getModelLabel(): string { return 'Reserva'; }
+    public static function getPluralModelLabel(): string { return 'Reservas'; }
     public static function form(Schema $schema): Schema
     {
         return ReservationForm::configure($schema);
