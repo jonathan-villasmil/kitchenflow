@@ -1,0 +1,50 @@
+<?php
+
+namespace App\Models;
+
+use Illuminate\Database\Eloquent\Factories\HasFactory;
+use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Database\Eloquent\Relations\HasMany;
+
+class Dish extends Model
+{
+    use HasFactory;
+
+    protected $fillable = [
+        'restaurant_id', 'menu_category_id', 'name', 'slug', 'description',
+        'price', 'cost', 'image', 'sku', 'allergens', 'tags',
+        'is_available', 'is_featured', 'preparation_time_minutes',
+        'kitchen_station', 'sort_order',
+    ];
+
+    protected $casts = [
+        'allergens' => 'array',
+        'tags' => 'array',
+        'price' => 'decimal:2',
+        'cost' => 'decimal:2',
+        'is_available' => 'boolean',
+        'is_featured' => 'boolean',
+    ];
+
+    public function restaurant(): BelongsTo
+    {
+        return $this->belongsTo(Restaurant::class);
+    }
+
+    public function category(): BelongsTo
+    {
+        return $this->belongsTo(MenuCategory::class, 'menu_category_id');
+    }
+
+    public function modifierGroups(): HasMany
+    {
+        return $this->hasMany(DishModifierGroup::class);
+    }
+
+    public function getMarginAttribute(): float
+    {
+        if (!$this->cost || $this->cost == 0) return 0;
+        return (($this->price - $this->cost) / $this->price) * 100;
+    }
+}
