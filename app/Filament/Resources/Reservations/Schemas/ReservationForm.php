@@ -23,7 +23,7 @@ class ReservationForm
                         ->schema([
                             Select::make('customer_id')
                                 ->label('Cliente registrado')
-                                ->options(Customer::query()->pluck('name', 'id'))
+                                ->relationship('customer', 'name')
                                 ->searchable()
                                 ->placeholder('Seleccionar cliente o rellenar abajo')
                                 ->nullable(),

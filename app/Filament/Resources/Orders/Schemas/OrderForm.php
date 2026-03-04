@@ -22,7 +22,11 @@ class OrderForm
                 Select::make('table_id')
                     ->relationship('table', 'id'),
                 Select::make('customer_id')
-                    ->relationship('customer', 'name'),
+                    ->label('Cliente Asociado')
+                    ->relationship('customer', 'name')
+                    ->searchable()
+                    ->preload()
+                    ->nullable(),
                 TextInput::make('user_id')
                     ->numeric(),
                 Select::make('type')
