@@ -8,6 +8,10 @@ Route::get('/', function () {
     return redirect('/admin');
 });
 
+Route::get('/login', function () {
+    return redirect('/admin/login');
+})->name('login');
+
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/pos', PosTerminal::class)->name('pos');
     Route::get('/kds', KitchenDisplay::class)->name('kds');

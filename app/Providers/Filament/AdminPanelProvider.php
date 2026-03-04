@@ -41,17 +41,12 @@ class AdminPanelProvider extends PanelProvider
                 'danger'  => Color::Rose,
             ])
             ->navigationGroups([
-                NavigationGroup::make('Restaurante')->icon('heroicon-o-building-storefront'),
-                    NavigationGroup::make()
-                        ->label('Cocina'),
-                    NavigationGroup::make()
-                        ->label('Carta & Menú'),
-                    NavigationGroup::make()
-                        ->label('Inventario'),
-                    NavigationGroup::make()
-                        ->label('Personas'),
-                    NavigationGroup::make()
-                        ->label('Configuración'),
+                NavigationGroup::make('Restaurante'),
+                NavigationGroup::make('Cocina'),
+                NavigationGroup::make('Carta & Menú'),
+                NavigationGroup::make('Inventario'),
+                NavigationGroup::make('Personas'),
+                NavigationGroup::make('Configuración'),
             ])
             ->discoverResources(in: app_path('Filament/Resources'), for: 'App\Filament\Resources')
             ->discoverPages(in: app_path('Filament/Pages'), for: 'App\Filament\Pages')
