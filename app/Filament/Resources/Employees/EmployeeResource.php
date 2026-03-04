@@ -21,6 +21,11 @@ class EmployeeResource extends Resource
     public static function getModelLabel(): string { return 'Empleado'; }
     public static function getPluralModelLabel(): string { return 'Empleados'; }
 
+    public static function canAccess(): bool
+    {
+        return auth()->user()->hasRole(['super_admin', 'manager']);
+    }
+
     public static function form(Schema $form): Schema
     {
         return $form

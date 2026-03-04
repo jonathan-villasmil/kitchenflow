@@ -23,6 +23,11 @@ class InventoryItemResource extends Resource
     public static function getModelLabel(): string { return 'Artículo de Inventario'; }
     public static function getPluralModelLabel(): string { return 'Artículos de Inventario'; }
 
+    public static function canAccess(): bool
+    {
+        return auth()->user()->hasRole(['super_admin', 'manager']);
+    }
+
     public static function form(Schema $form): Schema
     {
         return $form
