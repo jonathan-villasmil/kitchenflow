@@ -13,41 +13,23 @@ class CustomerForm
     {
         return $schema
             ->components([
-                \Filament\Schemas\Components\Section::make('Datos del Cliente')
-                    ->schema([
-                        \Filament\Forms\Components\Hidden::make('restaurant_id')
-                            ->default(fn () => auth()->user()->restaurant_id ?? 1),
-
-                        TextInput::make('name')
-                            ->label('Nombre Completo')
-                            ->required()
-                            ->maxLength(255),
-
-                        TextInput::make('email')
-                            ->label('Correo Electrónico')
-                            ->email()
-                            ->maxLength(255),
-
-                        TextInput::make('phone')
-                            ->label('Teléfono')
-                            ->tel()
-                            ->maxLength(255),
-
-                        DatePicker::make('birthday')
-                            ->label('Fecha de Nacimiento')
-                            ->maxDate(now()),
-
-                        TextInput::make('loyalty_points')
-                            ->label('Puntos Acumulados')
-                            ->required()
-                            ->numeric()
-                            ->default(0)
-                            ->prefixIcon('heroicon-m-star'),
-
-                        Textarea::make('notes')
-                            ->label('Notas / Preferencias')
-                            ->columnSpanFull(),
-                    ])->columns(2),
+                TextInput::make('restaurant_id')
+                    ->required()
+                    ->numeric(),
+                TextInput::make('name')
+                    ->required(),
+                TextInput::make('email')
+                    ->label('Email address')
+                    ->email(),
+                TextInput::make('phone')
+                    ->tel(),
+                DatePicker::make('birthday'),
+                TextInput::make('loyalty_points')
+                    ->required()
+                    ->numeric()
+                    ->default(0),
+                Textarea::make('notes')
+                    ->columnSpanFull(),
             ]);
     }
 }

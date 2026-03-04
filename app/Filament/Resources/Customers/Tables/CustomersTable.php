@@ -14,34 +14,22 @@ class CustomersTable
     {
         return $table
             ->columns([
-                TextColumn::make('name')
-                    ->label('Nombre')
-                    ->searchable()
-                    ->sortable()
-                    ->weight('bold'),
-
-                TextColumn::make('phone')
-                    ->label('Teléfono')
-                    ->searchable(),
-
-                TextColumn::make('email')
-                    ->label('Correo')
-                    ->searchable()
-                    ->toggleable(isToggledHiddenByDefault: true),
-
-                TextColumn::make('birthday')
-                    ->label('Cumpleaños')
-                    ->date('d M Y')
-                    ->sortable()
-                    ->toggleable(isToggledHiddenByDefault: true),
-
-                TextColumn::make('loyalty_points')
-                    ->label('Puntos Fidelidad')
+                TextColumn::make('restaurant_id')
                     ->numeric()
-                    ->sortable()
-                    ->badge()
-                    ->color('warning')
-                    ->icon('heroicon-m-star'),
+                    ->sortable(),
+                TextColumn::make('name')
+                    ->searchable(),
+                TextColumn::make('email')
+                    ->label('Email address')
+                    ->searchable(),
+                TextColumn::make('phone')
+                    ->searchable(),
+                TextColumn::make('birthday')
+                    ->date()
+                    ->sortable(),
+                TextColumn::make('loyalty_points')
+                    ->numeric()
+                    ->sortable(),
                 TextColumn::make('created_at')
                     ->dateTime()
                     ->sortable()
