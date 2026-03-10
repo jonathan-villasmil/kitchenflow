@@ -2,6 +2,8 @@
 
 namespace App\Livewire\Pos;
 
+use App\Models\CashRegister;
+use App\Models\CashRegisterTransaction;
 use App\Models\Dish;
 use App\Models\MenuCategory;
 use App\Models\Order;
@@ -29,6 +31,25 @@ class PosTerminal extends Component
     public ?int $selectedDishForModifiers = null;
     public array $selectedModifiers = []; // [modifier_group_id => [modifier_ids]]
 
+    // ─── Cash Register ─────────────────────────────────────────────────
+    public ?CashRegister $activeRegister = null;
+    public bool $showOpenRegisterModal = false;
+    public float $openingAmount = 0;
+
+    public bool $showCloseRegisterModal = false;
+    public float $closingAmount = 0;
+    public float $expectedAmount = 0;
+    public float $cashSales = 0;
+    public float $cashIn = 0;
+    public float $cashOut = 0;
+
+    // ─── Manual Cash In/Out ────────────────────────────────────────────
+    public bool $showManualCashModal = false;
+    public string $manualCashType = 'cash_out'; // cash_in or cash_out
+    public float $manualCashAmount = 0;
+    public string $manualCashNotes = '';
+    
+    // ─── Payment ───────────────────────────────────────────────────────
     public string $view = 'tables'; // tables, pos, payment
     public bool $showPaymentModal = false;
     public string $paymentMethod = 'cash';
@@ -43,6 +64,125 @@ class PosTerminal extends Component
         $this->selectedCategoryId = MenuCategory::where('restaurant_id', $restaurantId)
             ->orderBy('sort_order')
             ->first()?->id;
+
+        $this->checkActiveRegister();
+    }
+
+    private function checkActiveRegister(): void
+    {
+        $user = auth()->user();
+        $restaurantId = $user->restaurant_id ?? 1;
+
+        $this->activeRegister = CashRegister::where('restaurant_id', $restaurantId)
+            ->where('status', 'open')
+            ->first();
+
+        if (!$this->activeRegister) {
+            $this->showOpenRegisterModal = true;
+        }
+    }
+
+    public function openRegister(): void
+    {
+        $user = auth()->user();
+        $restaurantId = $user->restaurant_id ?? 1;
+
+        $this->activeRegister = CashRegister::create([
+            'restaurant_id'  => $restaurantId,
+            'opened_by'      => $user->id,
+            'opening_amount' => $this->openingAmount,
+            'opened_at'      => now(),
+            'status'         => 'open',
+        ]);
+
+        $this->showOpenRegisterModal = false;
+        session()->flash('success', 'CAJA ABIERTA: Turno iniciado con €'.number_format($this->openingAmount, 2));
+    }
+
+    public function calculateCloseRegister(): void
+    {
+        if (!$this->activeRegister) return;
+
+        $transactions = $this->activeRegister->transactions;
+        $this->cashSales = $transactions->where('type', 'sale')->where('payment_method', 'cash')->sum('amount');
+        $this->cashIn = $transactions->where('type', 'cash_in')->sum('amount');
+        $this->cashOut = $transactions->where('type', 'cash_out')->sum('amount');
+        $refunds = $transactions->where('type', 'refund')->where('payment_method', 'cash')->sum('amount');
+
+        $this->expectedAmount = $this->activeRegister->opening_amount + $this->cashSales + $this->cashIn - $this->cashOut - $refunds;
+        $this->closingAmount = $this->expectedAmount; // default to expected
+        $this->showCloseRegisterModal = true;
+    }
+
+    public function closeRegister(): void
+    {
+        if (!$this->activeRegister) return;
+
+        $this->calculateCloseRegister(); // Recalculate just in case
+
+        $difference = $this->closingAmount - $this->expectedAmount;
+        $notes = $this->activeRegister->notes;
+        
+        if ($difference != 0) {
+            $diffText = $difference > 0 ? "Sobrante de €" . number_format($difference, 2) : "Faltante de €" . number_format(abs($difference), 2);
+            $notes = trim($notes . "\nDescuadre al cierre: " . $diffText);
+        }
+
+        $closedRegisterId = $this->activeRegister->id;
+
+        $this->activeRegister->update([
+            'closed_by'       => auth()->id(),
+            'closed_at'       => now(),
+            'closing_amount'  => $this->closingAmount,
+            'expected_amount' => $this->expectedAmount,
+            'status'          => 'closed',
+            'notes'           => $notes,
+        ]);
+
+        $this->showCloseRegisterModal = false;
+        $this->activeRegister = null;
+        
+        // Dispatch event to client side to open the PDF in a new window/tab
+        $this->dispatch('print-z-report', url: route('pos.z-report', $closedRegisterId));
+        
+        $this->checkActiveRegister(); // This will trigger the Open Register modal again
+        
+        session()->flash('success', 'CAJA CERRADA correctamente. Descargando Reporte Z...');
+    }
+
+    // ─── Manual Cash Movements ─────────────────────────────────────────
+
+    public function openManualCashModal(string $type): void
+    {
+        if (!$this->activeRegister) return;
+        
+        $this->manualCashType = $type;
+        $this->manualCashAmount = 0;
+        $this->manualCashNotes = '';
+        $this->showManualCashModal = true;
+    }
+
+    public function submitManualCash(): void
+    {
+        if (!$this->activeRegister || $this->manualCashAmount <= 0) return;
+
+        $this->validate([
+            'manualCashAmount' => 'required|numeric|min:0.01',
+            'manualCashNotes'  => 'required|string|max:255',
+        ]);
+
+        $this->activeRegister->transactions()->create([
+            'user_id'        => auth()->id(),
+            'type'           => $this->manualCashType,
+            'amount'         => $this->manualCashAmount,
+            'payment_method' => 'cash',
+            'notes'          => $this->manualCashNotes,
+        ]);
+
+        $this->showManualCashModal = false;
+        
+        $action = $this->manualCashType === 'cash_in' ? 'Entrada' : 'Salida';
+        session()->flash('success', "{$action} de €" . number_format($this->manualCashAmount, 2) . " registrada correctamente.");
     }
 
     // ── Select a table and open POS ───────────────────────────────────
@@ -322,10 +462,23 @@ class PosTerminal extends Component
     // ── Process payment ───────────────────────────────────────────────
     public function processPayment(): void
     {
-        if (!$this->currentOrderId) return;
+        if (!$this->currentOrderId || !$this->activeRegister) return;
 
         $order = Order::find($this->currentOrderId);
         $order->update(['status' => 'paid', 'closed_at' => now()]);
+
+        if ($this->paymentMethod === 'cash') {
+            CashRegisterTransaction::create([
+                'cash_register_id' => $this->activeRegister->id,
+                'user_id'          => auth()->id(),
+                'type'             => 'sale',
+                'amount'           => $this->total,
+                'payment_method'   => 'cash',
+                'reference_type'   => Order::class,
+                'reference_id'     => $order->id,
+                'notes'            => 'Cobro Mesa ' . ($this->selectedTableId ? Table::find($this->selectedTableId)->number : 'Barra'),
+            ]);
+        }
 
         if ($this->selectedTableId) {
             Table::where('id', $this->selectedTableId)->update(['status' => 'available']);

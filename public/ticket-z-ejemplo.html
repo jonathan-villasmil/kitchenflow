@@ -1,0 +1,124 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Reporte Z - Caja #6</title>
+    <style>
+        body {
+            font-family: 'Courier New', Courier, monospace;
+            font-size: 12px;
+            margin: 0;
+            padding: 10px;
+            width: 280px; /* Approx 80mm */
+        }
+        .text-center { text-align: center; }
+        .text-right { text-align: right; }
+        .font-bold { font-weight: bold; }
+        .text-lg { font-size: 16px; }
+        .mb-2 { margin-bottom: 8px; }
+        .mb-4 { margin-bottom: 16px; }
+        .divider {
+            border-top: 1px dashed #000;
+            margin: 10px 0;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        th, td {
+            text-align: left;
+            padding: 2px 0;
+        }
+        .flex-between {
+            display: table;
+            width: 100%;
+        }
+        .flex-between > div {
+            display: table-cell;
+        }
+        .flex-between > div:last-child {
+            text-align: right;
+        }
+        .alert {
+            border: 1px solid #000;
+            padding: 5px;
+            text-align: center;
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+
+    <div class="text-center mb-4">
+        <h1 class="text-lg font-bold" style="margin: 0;">KITCHENFLOW POS</h1>
+        <div>Restaurante Local</div>
+        <div class="divider"></div>
+        <h2 class="font-bold" style="margin: 5px 0;">REPORTE Z (CIERRE DE CAJA)</h2>
+        <div>Caja ID: #6</div>
+        <div>Fecha: 10/03/2026</div>
+    </div>
+
+    <div class="divider"></div>
+
+    <div class="mb-2"><strong>Apertura:</strong> 20:58 (por Admin)</div>
+    <div class="mb-2"><strong>Cierre:</strong> 21:22 (por Admin)</div>
+
+    <div class="divider"></div>
+
+    <h3 class="font-bold" style="margin: 5px 0;">RESUMEN DE EFECTIVO</h3>
+    
+    <div class="flex-between">
+        <div>Fondo Inicial:</div>
+        <div>€100.00</div>
+    </div>
+    <div class="flex-between">
+        <div>Ventas Efectivo:</div>
+        <div>+€15.95</div>
+    </div>
+    <div class="flex-between">
+        <div>Entradas Manuales:</div>
+        <div>+€50.00</div>
+    </div>
+    <div class="flex-between">
+        <div>Salidas (Gastos):</div>
+        <div>-€25.00</div>
+    </div>
+    <div class="flex-between">
+        <div>Devoluciones:</div>
+        <div>-€0.00</div>
+    </div>
+
+    <div class="divider"></div>
+
+    <div class="flex-between font-bold text-lg mb-2">
+        <div>Efectivo Esperado:</div>
+        <div>€100.00</div>
+    </div>
+    <div class="flex-between font-bold mb-2">
+        <div>Efectivo Físico Contado:</div>
+        <div>€100.00</div>
+    </div>
+
+    
+            <div class="alert font-bold" style="border-style: solid;">
+            *** CAJA CUADRADA ***
+        </div>
+    
+    <div class="divider"></div>
+
+    <h3 class="font-bold" style="margin: 5px 0;">VENTAS CON TARJETA</h3>
+    <div class="flex-between">
+        <div>Total Tarjeta:</div>
+        <div>€25.00</div>
+    </div>
+
+    <div class="divider"></div>
+
+    
+    <div class="text-center" style="margin-top: 20px;">
+        <p>Documento no válido como factura.</p>
+        <p>Software KitchenFlow</p>
+    </div>
+
+</body>
+</html>

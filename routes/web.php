@@ -21,4 +21,8 @@ Route::get('/login', function () {
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/pos', PosTerminal::class)->name('pos');
     Route::get('/kds', KitchenDisplay::class)->name('kds');
+    
+    // Z-Report PDF Route
+    Route::get('/pos/z-report/{register}', [\App\Http\Controllers\ZReportController::class, 'download'])
+        ->name('pos.z-report');
 });

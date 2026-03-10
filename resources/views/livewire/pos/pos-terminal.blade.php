@@ -8,6 +8,13 @@
                     <button wire:click="$set('orderType', 'takeaway')" class="px-4 py-2 rounded-lg {{ $orderType === 'takeaway' ? 'bg-orange-500' : 'bg-gray-800' }}">Para llevar</button>
                     <button wire:click="$set('orderType', 'delivery')" class="px-4 py-2 rounded-lg {{ $orderType === 'delivery' ? 'bg-orange-500' : 'bg-gray-800' }}">A domicilio</button>
                     <button wire:click="selectTable(0)" class="px-4 py-2 bg-blue-600 rounded-lg">Sin Mesa (Directo)</button>
+                    @if($this->activeRegister)
+                        <div class="flex gap-2 mr-4 border-r border-gray-700 pr-4">
+                            <button wire:click="openManualCashModal('cash_in')" class="px-3 py-2 bg-green-900/50 text-green-400 border border-green-700 hover:bg-green-800 rounded-lg font-bold transition flex items-center gap-1"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg> Ingreso</button>
+                            <button wire:click="openManualCashModal('cash_out')" class="px-3 py-2 bg-red-900/50 text-red-400 border border-red-700 hover:bg-red-800 rounded-lg font-bold transition flex items-center gap-1"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 12H4"></path></svg> Retiro</button>
+                        </div>
+                        <button wire:click="calculateCloseRegister" class="px-4 py-2 bg-purple-600 text-white rounded-lg font-bold shadow-lg hover:bg-purple-500 transition">Cerrar Caja (Reporte Z)</button>
+                    @endif
                     @if(auth()->user() && !auth()->user()->hasRole('camarero'))
                         <a href="{{ url('/admin') }}" data-navigate-ignore="true" class="px-4 py-2 bg-gray-700 rounded-lg text-gray-300 hover:bg-gray-600 transition">Volver Admin</a>
                     @else
@@ -311,6 +318,169 @@
         </div>
     @endif
 
+    <!-- OPEN REGISTER MODAL -->
+    @if($showOpenRegisterModal)
+    <div class="fixed inset-0 bg-black/90 flex items-center justify-center z-[100] backdrop-blur-sm">
+        <div class="bg-gray-900 rounded-2xl w-full max-w-md overflow-hidden border-2 border-orange-500 shadow-[0_0_30px_rgba(249,115,22,0.3)]">
+            <div class="p-6 border-b border-gray-800 bg-gray-950 text-center">
+                <div class="w-16 h-16 bg-orange-500/20 text-orange-500 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                </div>
+                <h3 class="text-2xl font-bold">Apertura de Caja</h3>
+                <p class="text-gray-400 mt-2">Introduce el fondo inicial de monedas y billetes para comenzar el turno.</p>
+            </div>
+            <div class="p-6">
+                <form wire:submit.prevent="openRegister">
+                    <div class="mb-6">
+                        <label class="text-sm text-gray-400 mb-2 block font-bold">Fondo de Caja (Efectivo Físico)</label>
+                        <div class="relative">
+                            <span class="absolute inset-y-0 left-0 flex items-center pl-4 text-2xl text-gray-500">€</span>
+                            <input wire:model="openingAmount" type="number" step="0.01" min="0" required autofocus 
+                                class="w-full bg-gray-800 border-2 border-gray-700 focus:border-orange-500 rounded-xl pl-12 pr-4 py-4 text-3xl font-bold text-white transition placeholder-gray-600" placeholder="0.00">
+                        </div>
+                    </div>
+                    
+                    <button type="submit" class="w-full py-4 bg-orange-600 hover:bg-orange-500 rounded-xl font-bold text-xl transition flex justify-center items-center gap-2">
+                        <span>Iniciar Turno y Abrir Caja</span>
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M14 5l7 7m0 0l-7 7m7-7H3"></path></svg>
+                    </button>
+                    
+                    @if(auth()->user() && !auth()->user()->hasRole('camarero'))
+                        <a href="{{ url('/admin') }}" data-navigate-ignore="true" class="block text-center mt-4 text-gray-500 hover:text-white transition">Volver al Panel</a>
+                    @endif
+                </form>
+            </div>
+        </div>
+    </div>
+    @endif
+
+    <!-- CLOSE REGISTER MODAL (Z-REPORT) -->
+    @if($showCloseRegisterModal && $activeRegister)
+    <div class="fixed inset-0 bg-black/90 flex items-center justify-center z-[100] backdrop-blur-sm">
+        <div class="bg-gray-900 rounded-2xl w-full max-w-lg overflow-hidden border border-gray-700 shadow-2xl flex flex-col max-h-[90vh]">
+            <div class="p-6 border-b border-gray-800 bg-gray-950 flex justify-between items-center shrink-0">
+                <div>
+                    <h3 class="text-2xl font-bold">Cierre de Caja (Reporte Z)</h3>
+                    <div class="text-gray-400">Turno abierto a las {{ $activeRegister->opened_at->format('H:i') }}</div>
+                </div>
+                <button wire:click="$set('showCloseRegisterModal', false)" class="text-gray-400 hover:text-white w-10 h-10 flex items-center justify-center rounded-full bg-gray-800 hover:bg-gray-700 transition">✕</button>
+            </div>
+            
+            <div class="p-6 overflow-y-auto flex-1 space-y-6">
+                <!-- Resumen de Movimientos -->
+                <div class="bg-gray-800 rounded-xl p-4 border border-gray-700 space-y-2">
+                    <div class="flex justify-between text-gray-400">
+                        <span>Fondo inicial:</span>
+                        <span class="font-mono text-white">€{{ number_format($activeRegister->opening_amount, 2) }}</span>
+                    </div>
+                    <div class="flex justify-between text-gray-400">
+                        <span>Ventas en Efectivo:</span>
+                        <span class="font-mono text-green-400">+ €{{ number_format($cashSales, 2) }}</span>
+                    </div>
+                    @if($cashIn > 0)
+                    <div class="flex justify-between text-gray-400">
+                        <span>Entradas manuales:</span>
+                        <span class="font-mono text-green-400">+ €{{ number_format($cashIn, 2) }}</span>
+                    </div>
+                    @endif
+                    @if($cashOut > 0)
+                    <div class="flex justify-between text-gray-400">
+                        <span>Salidas (Pagos/Gastos):</span>
+                        <span class="font-mono text-red-400">- €{{ number_format($cashOut, 2) }}</span>
+                    </div>
+                    @endif
+                    
+                    <div class="pt-2 border-t border-gray-700 flex justify-between items-center mt-2">
+                        <span class="font-bold">Efectivo Esperado (Sistema):</span>
+                        <span class="text-xl font-bold font-mono">€{{ number_format($expectedAmount, 2) }}</span>
+                    </div>
+                </div>
+
+                <!-- Efectivo Real -->
+                <form wire:submit.prevent="closeRegister">
+                    <div class="mb-4">
+                        <label class="text-sm text-gray-400 mb-2 block font-bold">Efectivo Físico en Cajón (Contado)</label>
+                        <div class="relative">
+                            <span class="absolute inset-y-0 left-0 flex items-center pl-4 text-2xl text-gray-500">€</span>
+                            <input wire:model.live="closingAmount" type="number" step="0.01" min="0" required autofocus 
+                                class="w-full bg-gray-950 border-2 {{ ($closingAmount - $expectedAmount) == 0 ? 'border-green-500' : 'border-red-500' }} rounded-xl pl-12 pr-4 py-4 text-3xl font-bold text-white transition placeholder-gray-600">
+                        </div>
+                    </div>
+                    
+                    @php
+                        $diff = $closingAmount - $expectedAmount;
+                    @endphp
+                    
+                    @if($diff != 0)
+                        <div class="p-3 mb-6 rounded-lg {{ $diff > 0 ? 'bg-orange-900/50 text-orange-200 border border-orange-700' : 'bg-red-900/50 text-red-200 border border-red-700' }}">
+                            <div class="font-bold flex items-center gap-2">
+                                ⚠️ Atención: Hay un descuadre
+                            </div>
+                            <div class="text-sm">
+                                Se registrará un {{ $diff > 0 ? 'SOBRANTE' : 'FALTANTE' }} de <strong>€{{ number_format(abs($diff), 2) }}</strong>.
+                            </div>
+                        </div>
+                    @else
+                        <div class="p-3 mb-6 rounded-lg bg-green-900/30 text-green-300 border border-green-800 text-center font-bold">
+                            ✅ La caja cuadra perfectamente.
+                        </div>
+                    @endif
+
+                    <button type="submit" class="w-full py-4 bg-purple-600 hover:bg-purple-500 rounded-xl font-bold text-xl transition flex justify-center items-center gap-2 text-white">
+                        <span>Cerrar Turno e Imprimir Z</span>
+                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1"></path></svg>
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+    @endif
+
+    <!-- MANUAL CASH IN/OUT MODAL -->
+    @if($showManualCashModal && $activeRegister)
+    <div class="fixed inset-0 bg-black/90 flex items-center justify-center z-[100] backdrop-blur-sm">
+        <div class="bg-gray-900 rounded-2xl w-full max-w-md overflow-hidden border {{ $manualCashType === 'cash_in' ? 'border-green-500 shadow-[0_0_30px_rgba(34,197,94,0.3)]' : 'border-red-500 shadow-[0_0_30px_rgba(239,68,68,0.3)]' }}">
+            <div class="p-6 border-b border-gray-800 bg-gray-950 flex justify-between items-center">
+                <div class="flex items-center gap-3">
+                    <div class="w-10 h-10 rounded-full flex items-center justify-center {{ $manualCashType === 'cash_in' ? 'bg-green-500/20 text-green-500' : 'bg-red-500/20 text-red-500' }}">
+                        @if($manualCashType === 'cash_in')
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg>
+                        @else
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 12H4"></path></svg>
+                        @endif
+                    </div>
+                    <h3 class="text-2xl font-bold">{{ $manualCashType === 'cash_in' ? 'Nuevo Ingreso' : 'Retiro de Caja' }}</h3>
+                </div>
+                <button wire:click="$set('showManualCashModal', false)" class="text-gray-400 hover:text-white w-10 h-10 flex items-center justify-center rounded-full bg-gray-800 hover:bg-gray-700 transition">✕</button>
+            </div>
+            <div class="p-6 bg-gray-900">
+                <form wire:submit.prevent="submitManualCash">
+                    <div class="mb-4">
+                        <label class="text-sm text-gray-400 mb-2 block font-bold">Importe (Efectivo)</label>
+                        <div class="relative">
+                            <span class="absolute inset-y-0 left-0 flex items-center pl-4 text-2xl text-gray-500">€</span>
+                            <input wire:model="manualCashAmount" type="number" step="0.01" min="0.01" required autofocus 
+                                class="w-full bg-gray-950 border-2 border-gray-700 {{ $manualCashType === 'cash_in' ? 'focus:border-green-500' : 'focus:border-red-500' }} rounded-xl pl-12 pr-4 py-4 text-3xl font-bold text-white transition placeholder-gray-600" placeholder="0.00">
+                        </div>
+                    </div>
+
+                    <div class="mb-6">
+                        <label class="text-sm text-gray-400 mb-2 block font-bold">Concepto / Motivo</label>
+                        <input wire:model="manualCashNotes" type="text" required 
+                            class="w-full bg-gray-800 border-gray-700 rounded-xl px-4 py-3 text-white focus:border-orange-500 focus:ring-orange-500" 
+                            placeholder="{{ $manualCashType === 'cash_in' ? 'Ej: Cambio traído del banco' : 'Ej: Pago a proveedor de pan' }}">
+                        @error('manualCashNotes') <span class="text-red-500 text-sm mt-1">{{ $message }}</span> @enderror
+                    </div>
+                    
+                    <button type="submit" class="w-full py-4 rounded-xl font-bold text-xl transition flex justify-center items-center gap-2 text-white {{ $manualCashType === 'cash_in' ? 'bg-green-600 hover:bg-green-500' : 'bg-red-600 hover:bg-red-500' }}">
+                        <span>Registrar {{ $manualCashType === 'cash_in' ? 'Ingreso' : 'Retiro' }}</span>
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+    @endif
+
     <!-- NOTIFICATIONS -->
     @if(session()->has('success'))
         <div class="fixed bottom-4 right-4 bg-green-600 text-white px-6 py-4 rounded-xl shadow-lg font-bold z-50 animate-bounce">
@@ -318,4 +488,13 @@
         </div>
         <script>setTimeout(() => { document.querySelector('.animate-bounce').style.display = 'none'; }, 3000);</script>
     @endif
+
+    <script>
+        document.addEventListener('livewire:initialized', () => {
+            Livewire.on('print-z-report', (event) => {
+                // Open the PDF in a new window/tab for printing
+                window.open(event[0].url, '_blank', 'width=400,height=600');
+            });
+        });
+    </script>
 </div>

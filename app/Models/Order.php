@@ -65,6 +65,16 @@ class Order extends Model
         return $this->hasMany(OrderItem::class);
     }
 
+    public function payments(): HasMany
+    {
+        return $this->hasMany(Payment::class);
+    }
+
+    public function cashRegisterTransactions(): MorphMany
+    {
+        return $this->morphMany(CashRegisterTransaction::class, 'reference');
+    }
+
     public function recalculateTotals(): void
     {
         $subtotal = $this->items()
