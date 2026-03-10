@@ -2,10 +2,12 @@
 
 namespace App\Providers\Filament;
 
+use App\Http\Middleware\RoleRedirectMiddleware;
 use Filament\Http\Middleware\Authenticate;
 use Filament\Http\Middleware\AuthenticateSession;
 use Filament\Http\Middleware\DisableBladeIconComponents;
 use Filament\Http\Middleware\DispatchServingFilamentEvent;
+use Filament\Navigation\NavigationItem;
 use Filament\Navigation\NavigationGroup;
 use Filament\Pages\Dashboard;
 use Filament\Panel;
@@ -18,6 +20,8 @@ use Illuminate\Foundation\Http\Middleware\VerifyCsrfToken;
 use Illuminate\Routing\Middleware\SubstituteBindings;
 use Illuminate\Session\Middleware\StartSession;
 use Illuminate\View\Middleware\ShareErrorsFromSession;
+use Filament\View\PanelsRenderHook;
+use Illuminate\Support\Facades\Blade;
 
 class AdminPanelProvider extends PanelProvider
 {
@@ -48,6 +52,18 @@ class AdminPanelProvider extends PanelProvider
                 NavigationGroup::make('Personas'),
                 NavigationGroup::make('Configuración'),
             ])
+            ->navigationItems([
+                NavigationItem::make('Terminal POS')
+                    ->url(fn (): string => route('pos'))
+                    ->icon('heroicon-o-computer-desktop')
+                    ->group('Operaciones')
+                    ->sort(1),
+                NavigationItem::make('Pantalla de Cocina (KDS)')
+                    ->url(fn (): string => route('kds'))
+                    ->icon('heroicon-o-fire')
+                    ->group('Operaciones')
+                    ->sort(2),
+            ])
             ->discoverResources(in: app_path('Filament/Resources'), for: 'App\Filament\Resources')
             ->discoverPages(in: app_path('Filament/Pages'), for: 'App\Filament\Pages')
             ->pages([
@@ -57,6 +73,10 @@ class AdminPanelProvider extends PanelProvider
             ->widgets([
                 AccountWidget::class,
             ])
+            ->renderHook(
+                PanelsRenderHook::HEAD_END,
+                fn (): string => Blade::render('<meta name="theme-color" content="#f97316"/><link rel="apple-touch-icon" href="{{ asset(\'pwa-logo.png\') }}"><link rel="manifest" href="{{ asset(\'manifest.json\') }}"> @laravelPwa')
+            )
             ->middleware([
                 EncryptCookies::class,
                 AddQueuedCookiesToResponse::class,
@@ -70,6 +90,7 @@ class AdminPanelProvider extends PanelProvider
             ])
             ->authMiddleware([
                 Authenticate::class,
+                RoleRedirectMiddleware::class,
             ]);
     }
 }

@@ -8,7 +8,15 @@
                     <button wire:click="$set('orderType', 'takeaway')" class="px-4 py-2 rounded-lg {{ $orderType === 'takeaway' ? 'bg-orange-500' : 'bg-gray-800' }}">Para llevar</button>
                     <button wire:click="$set('orderType', 'delivery')" class="px-4 py-2 rounded-lg {{ $orderType === 'delivery' ? 'bg-orange-500' : 'bg-gray-800' }}">A domicilio</button>
                     <button wire:click="selectTable(0)" class="px-4 py-2 bg-blue-600 rounded-lg">Sin Mesa (Directo)</button>
-                    <a href="/admin" class="px-4 py-2 bg-gray-700 rounded-lg text-gray-300">Volver al Admin</a>
+                    @if(auth()->user() && !auth()->user()->hasRole('camarero'))
+                        <a href="{{ url('/admin') }}" data-navigate-ignore="true" class="px-4 py-2 bg-gray-700 rounded-lg text-gray-300 hover:bg-gray-600 transition">Volver Admin</a>
+                    @else
+                        <!-- Direct logout for camareros -->
+                        <form method="POST" action="{{ route('filament.admin.auth.logout') }}" class="inline">
+                            @csrf
+                            <button type="submit" class="px-4 py-2 bg-red-600 rounded-lg text-white hover:bg-red-500 transition">Salir</button>
+                        </form>
+                    @endif
                 </div>
             </div>
 

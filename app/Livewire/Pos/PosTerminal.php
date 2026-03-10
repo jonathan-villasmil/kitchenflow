@@ -32,12 +32,12 @@ class PosTerminal extends Component
 
     public function mount(): void
     {
-        $restaurant = auth()->user()->restaurant;
-        if ($restaurant) {
-            $this->selectedCategoryId = MenuCategory::where('restaurant_id', $restaurant->id)
-                ->orderBy('sort_order')
-                ->first()?->id;
-        }
+        $user = auth()->user();
+        $restaurantId = $user->restaurant_id ?? 1;
+        
+        $this->selectedCategoryId = MenuCategory::where('restaurant_id', $restaurantId)
+            ->orderBy('sort_order')
+            ->first()?->id;
     }
 
     // ── Select a table and open POS ───────────────────────────────────
@@ -134,8 +134,13 @@ class PosTerminal extends Component
 
     public function getTaxProperty(): float
     {
-        $restaurant = auth()->user()->restaurant;
-        $rate = $restaurant ? (float) $restaurant->tax_rate / 100 : 0.10;
+        $user = auth()->user();
+        if ($user->restaurant) {
+            $rate = (float) $user->restaurant->tax_rate / 100;
+        } else {
+            $restaurant = \App\Models\Restaurant::find(1);
+            $rate = $restaurant ? (float) $restaurant->tax_rate / 100 : 0.10;
+        }
         return round($this->subtotal * $rate, 2);
     }
 
@@ -154,12 +159,12 @@ class PosTerminal extends Component
     {
         if (empty($this->cart)) return;
 
-        $user       = auth()->user();
-        $restaurant = $user->restaurant;
+        $user = auth()->user();
+        $restaurantId = $user->restaurant_id ?? 1;
 
         if (!$this->currentOrderId) {
             $order = Order::create([
-                'restaurant_id' => $restaurant->id,
+                'restaurant_id' => $restaurantId,
                 'table_id'      => $this->selectedTableId,
                 'user_id'       => $user->id,
                 'type'          => $this->orderType,
@@ -229,8 +234,10 @@ class PosTerminal extends Component
     // ── Dishes for current category/search ────────────────────────────
     public function getDishesProperty()
     {
-        $restaurant = auth()->user()->restaurant;
-        $query = Dish::where('restaurant_id', $restaurant->id)
+        $user = auth()->user();
+        $restaurantId = $user->restaurant_id ?? 1;
+        
+        $query = Dish::where('restaurant_id', $restaurantId)
             ->where('is_available', true);
 
         if ($this->searchQuery) {
@@ -244,8 +251,10 @@ class PosTerminal extends Component
 
     public function getCategoriesProperty()
     {
-        $restaurant = auth()->user()->restaurant;
-        return MenuCategory::where('restaurant_id', $restaurant->id)
+        $user = auth()->user();
+        $restaurantId = $user->restaurant_id ?? 1;
+        
+        return MenuCategory::where('restaurant_id', $restaurantId)
             ->where('is_active', true)
             ->orderBy('sort_order')
             ->get();
@@ -253,8 +262,10 @@ class PosTerminal extends Component
 
     public function getTablesProperty()
     {
-        $restaurant = auth()->user()->restaurant;
-        return Table::where('restaurant_id', $restaurant->id)
+        $user = auth()->user();
+        $restaurantId = $user->restaurant_id ?? 1;
+        
+        return Table::where('restaurant_id', $restaurantId)
             ->where('is_active', true)
             ->orderBy('number')
             ->with('activeOrder')

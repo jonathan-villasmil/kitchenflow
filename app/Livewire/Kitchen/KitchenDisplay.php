@@ -41,14 +41,15 @@ class KitchenDisplay extends Component
 
     public function getActiveOrdersProperty()
     {
-        $restaurant = auth()->user()->restaurant;
+        $user = auth()->user();
+        $restaurantId = $user->restaurant_id ?? 1;
 
         // Get orders that have items for this station that are NOT ready/delivered
         return Order::with(['items' => function ($query) {
                 $query->whereIn('status', ['sent', 'preparing'])
                       ->whereHas('dish', fn ($q) => $q->where('kitchen_station', $this->station));
             }])
-            ->where('restaurant_id', $restaurant->id)
+            ->where('restaurant_id', $restaurantId)
             ->whereHas('items', function ($query) {
                 $query->whereIn('status', ['sent', 'preparing'])
                       ->whereHas('dish', fn ($q) => $q->where('kitchen_station', $this->station));

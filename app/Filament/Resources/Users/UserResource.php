@@ -19,9 +19,9 @@ class UserResource extends Resource
     protected static ?string $model = User::class;
     
     protected static string|\BackedEnum|null $navigationIcon = 'heroicon-o-shield-check';
-    public static function getNavigationGroup(): ?string { return 'Configuración'; }
-    public static function getModelLabel(): string { return 'Cuenta de Usuario'; }
-    public static function getPluralModelLabel(): string { return 'Cuentas de Acceso'; }
+    public static function getNavigationGroup(): ?string { return 'Personas'; }
+    public static function getModelLabel(): string { return 'Usuario'; }
+    public static function getPluralModelLabel(): string { return 'Usuarios'; }
 
     public static function canAccess(): bool
     {
