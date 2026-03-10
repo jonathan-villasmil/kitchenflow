@@ -12,7 +12,7 @@ class MenuCategory extends Model
     use HasFactory;
 
     protected $fillable = [
-        'restaurant_id', 'name', 'icon', 'color', 'sort_order', 'is_active',
+        'restaurant_id', 'name', 'image', 'icon', 'color', 'sort_order', 'is_active',
     ];
 
     protected $casts = [

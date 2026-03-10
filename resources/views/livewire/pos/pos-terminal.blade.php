@@ -115,13 +115,24 @@
             <!-- RIGHT PANEL: MENU -->
             <div class="flex-1 flex flex-col bg-gray-950">
                 <!-- CATEGORIES -->
-                <div class="p-4 border-b border-gray-800 overflow-x-auto whitespace-nowrap hide-scrollbar flex gap-2">
-                    <button wire:click="selectCategory(null)" class="px-6 py-3 rounded-xl font-bold transition {{ is_null($selectedCategoryId) ? 'bg-orange-500 text-white' : 'bg-gray-800 text-gray-400 hover:bg-gray-700' }}">Todos</button>
-                    @foreach($this->categories as $category)
-                        <button wire:click="selectCategory({{ $category->id }})" class="px-6 py-3 rounded-xl font-bold transition {{ $selectedCategoryId === $category->id ? 'bg-orange-500 text-white' : 'bg-gray-800 text-gray-400 hover:bg-gray-700' }}">
-                            {{ $category->name }}
-                        </button>
-                    @endforeach
+                <div class="px-4 py-4 border-b border-gray-800">
+                    <div class="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-5 lg:grid-cols-6 xl:grid-cols-8 gap-3">
+                        <button wire:click="selectCategory(null)" class="h-20 w-full rounded-xl font-bold flex flex-col items-center justify-center transition border-2 {{ is_null($selectedCategoryId) ? 'border-orange-500 bg-orange-500 text-white' : 'border-gray-700 bg-gray-800 text-gray-400 hover:border-gray-500' }}">Todos</button>
+                        @foreach($this->categories as $category)
+                            <button wire:click="selectCategory({{ $category->id }})" class="h-20 w-full rounded-xl font-bold transition border-2 relative overflow-hidden group {{ $selectedCategoryId === $category->id ? 'border-orange-500 shadow-[0_0_15px_rgba(249,115,22,0.5)]' : 'border-gray-700 hover:border-gray-500' }}">
+                                @if($category->image)
+                                    <div class="absolute inset-0 bg-cover bg-center transition duration-500 group-hover:scale-110" style="background-image: url('{{ Storage::url($category->image) }}')"></div>
+                                    <div class="absolute inset-0 bg-black/60 group-hover:bg-black/50 transition"></div>
+                                @else
+                                    <div class="absolute inset-0 bg-gray-800"></div>
+                                @endif
+                                <div class="absolute inset-0 flex flex-col items-center justify-center p-2 text-center text-white text-sm whitespace-normal leading-tight z-10 {{ $selectedCategoryId === $category->id ? 'text-orange-100' : '' }}">
+                                    @if($category->icon) <span class="text-xl mb-1">{{ $category->icon }}</span> @endif
+                                    <span>{{ $category->name }}</span>
+                                </div>
+                            </button>
+                        @endforeach
+                    </div>
                 </div>
 
                 <!-- DISHES GRID -->
@@ -133,15 +144,15 @@
 
                     <div class="grid grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-4">
                         @foreach($this->dishes as $dish)
-                            <button wire:click="addToCart({{ $dish->id }})" class="bg-gray-800 rounded-xl overflow-hidden hover:ring-2 hover:ring-orange-500 transition text-left flex flex-col h-full active:scale-95">
+                            <button wire:click="addToCart({{ $dish->id }})" class="bg-gray-800 rounded-xl overflow-hidden hover:ring-2 hover:ring-orange-500 transition text-left flex flex-col h-full active:scale-95 border-2 border-gray-700 hover:border-orange-500">
                                 @if($dish->image)
-                                    <div class="h-32 bg-gray-900 w-full bg-cover bg-center" style="background-image: url('{{ Storage::url($dish->image) }}')"></div>
+                                    <img src="{{ Storage::url($dish->image) }}" alt="{{ $dish->name }}" class="w-full h-40 object-cover shrink-0">
                                 @else
-                                    <div class="h-32 bg-gray-700 w-full flex items-center justify-center text-gray-500">Sin foto</div>
+                                    <div class="w-full h-40 shrink-0 bg-gray-700 flex items-center justify-center text-gray-500">Sin foto</div>
                                 @endif
-                                <div class="p-3 flex-1 flex flex-col justify-between">
-                                    <div class="font-bold leading-tight line-clamp-2">{{ $dish->name }}</div>
-                                    <div class="text-orange-400 font-bold mt-2">€{{ number_format($dish->price, 2) }}</div>
+                                <div class="p-4 flex-1 flex flex-col justify-between bg-gray-900 w-full border-t border-gray-800">
+                                    <div class="font-bold text-lg leading-tight line-clamp-2">{{ $dish->name }}</div>
+                                    <div class="text-orange-400 font-bold mt-2 text-xl">€{{ number_format($dish->price, 2) }}</div>
                                 </div>
                             </button>
                         @endforeach
@@ -161,6 +172,25 @@
                         <div class="text-center mb-6">
                             <div class="text-gray-400">Total a pagar</div>
                             <div class="text-5xl font-bold text-orange-500">€{{ number_format($this->total, 2) }}</div>
+                        </div>
+
+                        <!-- SPLIT BILL CALCULATOR -->
+                        <div class="mb-6 flex flex-col gap-2">
+                            <div class="flex items-center justify-between bg-gray-950 p-4 rounded-xl border border-gray-800">
+                                <span class="text-gray-400 font-bold text-lg">Dividir cuenta:</span>
+                                <div class="flex items-center gap-4">
+                                    <button wire:click="decrementSplit" class="w-10 h-10 bg-gray-700 hover:bg-gray-600 rounded-lg text-white font-bold text-2xl transition">-</button>
+                                    <span class="text-2xl font-bold w-6 text-center">{{ $splitWays }}</span>
+                                    <button wire:click="incrementSplit" class="w-10 h-10 bg-gray-700 hover:bg-gray-600 rounded-lg text-white font-bold text-2xl transition">+</button>
+                                </div>
+                            </div>
+
+                            @if($splitWays > 1)
+                            <div class="flex justify-between items-center bg-yellow-900/30 border border-yellow-700/50 p-4 rounded-xl">
+                                <span class="text-yellow-500 font-bold">Cada persona paga</span>
+                                <span class="text-3xl font-bold text-yellow-400">€{{ number_format($this->total / $splitWays, 2) }}</span>
+                            </div>
+                            @endif
                         </div>
 
                         <div class="grid grid-cols-2 gap-4 mb-6">

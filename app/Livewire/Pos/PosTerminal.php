@@ -24,11 +24,11 @@ class PosTerminal extends Component
     public ?int $currentOrderId = null;
     public string $notes = '';
 
-    // ─── UI State ──────────────────────────────────────────────────────
     public string $view = 'tables'; // tables, pos, payment
     public bool $showPaymentModal = false;
     public string $paymentMethod = 'cash';
     public float $cashReceived = 0;
+    public int $splitWays = 1;
 
     public function mount(): void
     {
@@ -151,7 +151,19 @@ class PosTerminal extends Component
 
     public function getChangeProperty(): float
     {
-        return max(0, $this->cashReceived - $this->total);
+        return max(0, $this->cashReceived - ($this->total / $this->splitWays));
+    }
+
+    public function incrementSplit(): void
+    {
+        $this->splitWays++;
+    }
+
+    public function decrementSplit(): void
+    {
+        if ($this->splitWays > 1) {
+            $this->splitWays--;
+        }
     }
 
     // ── Send order to kitchen ─────────────────────────────────────────
@@ -215,12 +227,11 @@ class PosTerminal extends Component
         $order = Order::find($this->currentOrderId);
         $order->update(['status' => 'paid', 'closed_at' => now()]);
 
-        // Free the table
         if ($this->selectedTableId) {
             Table::where('id', $this->selectedTableId)->update(['status' => 'available']);
         }
 
-        $this->reset(['cart', 'currentOrderId', 'selectedTableId', 'showPaymentModal']);
+        $this->reset(['cart', 'currentOrderId', 'selectedTableId', 'showPaymentModal', 'splitWays']);
         $this->view = 'tables';
         session()->flash('success', '✅ Pago procesado correctamente');
     }
@@ -228,7 +239,7 @@ class PosTerminal extends Component
     public function backToTables(): void
     {
         $this->view = 'tables';
-        $this->reset(['cart', 'selectedTableId', 'currentOrderId'], );
+        $this->reset(['cart', 'selectedTableId', 'currentOrderId', 'splitWays']);
     }
 
     // ── Dishes for current category/search ────────────────────────────

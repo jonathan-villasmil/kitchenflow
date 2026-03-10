@@ -1,4 +1,41 @@
-<div>
+<div x-data="{
+    checkUrgent() {
+        if (!@js($soundEnabled)) return;
+        const hasUrgent = document.querySelectorAll('.animate-pulse').length > 0;
+        if (hasUrgent) {
+            this.playAlarm();
+        }
+    },
+    playAlarm() {
+        try {
+            const ctx = new (window.AudioContext || window.webkitAudioContext)();
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.type = 'sawtooth';
+            osc.frequency.setValueAtTime(800, ctx.currentTime);
+            osc.frequency.setValueAtTime(1200, ctx.currentTime + 0.1); 
+            gain.gain.setValueAtTime(0.5, ctx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.3);
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            osc.start();
+            osc.stop(ctx.currentTime + 0.3);
+            
+            // double beep
+            const osc2 = ctx.createOscillator();
+            const gain2 = ctx.createGain();
+            osc2.type = 'sawtooth';
+            osc2.frequency.setValueAtTime(800, ctx.currentTime + 0.4);
+            osc2.frequency.setValueAtTime(1200, ctx.currentTime + 0.5); 
+            gain2.gain.setValueAtTime(0.5, ctx.currentTime + 0.4);
+            gain2.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.7);
+            osc2.connect(gain2);
+            gain2.connect(ctx.destination);
+            osc2.start(ctx.currentTime + 0.4);
+            osc2.stop(ctx.currentTime + 0.7);
+        } catch(e) {}
+    }
+}" x-init="setInterval(() => checkUrgent(), 5000)">
     <!-- HEADER -->
     <div class="h-16 bg-gray-900 border-b border-gray-800 flex justify-between items-center px-6">
         <h1 class="text-2xl font-bold flex items-center gap-3">
