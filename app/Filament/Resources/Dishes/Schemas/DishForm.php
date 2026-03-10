@@ -60,6 +60,11 @@ class DishForm
                                     )
                                     ->searchable()
                                     ->reactive(),
+                                Select::make('modifierGroups')
+                                    ->relationship('modifierGroups', 'name')
+                                    ->label('Grupos de Opciones (Extras, Punto...)')
+                                    ->multiple()
+                                    ->preload(),
                             ]),
 
                             Grid::make(3)->schema([

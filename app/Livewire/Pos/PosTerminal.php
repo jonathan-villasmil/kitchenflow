@@ -20,9 +20,14 @@ class PosTerminal extends Component
     public string $searchQuery = '';
 
     // ─── Current Order ─────────────────────────────────────────────────
-    public array $cart = []; // [dish_id => ['dish' => [...], 'quantity' => int, 'notes' => '', 'modifiers' => []]]
+    public array $cart = []; // [hash => ['dish_id' => int, 'name' => string, 'unit_price' => float, 'quantity' => int, 'notes' => '', 'modifiers' => [['id', 'name', 'price']]]]
     public ?int $currentOrderId = null;
     public string $notes = '';
+
+    // ─── Modifiers Modal ───────────────────────────────────────────────
+    public bool $showModifierModal = false;
+    public ?int $selectedDishForModifiers = null;
+    public array $selectedModifiers = []; // [modifier_group_id => [modifier_ids]]
 
     public string $view = 'tables'; // tables, pos, payment
     public bool $showPaymentModal = false;
@@ -62,7 +67,13 @@ class PosTerminal extends Component
     private function loadOrderToCart(Order $order): void
     {
         $this->cart = [];
-        foreach ($order->items()->where('status', '!=', 'cancelled')->get() as $item) {
+        foreach ($order->items()->where('status', '!=', 'cancelled')->with('modifiers')->get() as $item) {
+            $modifiers = $item->modifiers->map(fn($m) => [
+                'id' => $m->modifier_id,
+                'name' => $m->modifier_name,
+                'price' => (float) $m->price,
+            ])->toArray();
+
             $key = "item_{$item->id}";
             $this->cart[$key] = [
                 'order_item_id' => $item->id,
@@ -71,6 +82,7 @@ class PosTerminal extends Component
                 'unit_price'    => (float) $item->unit_price,
                 'quantity'      => $item->quantity,
                 'notes'         => $item->notes ?? '',
+                'modifiers'     => $modifiers,
                 'line_total'    => (float) $item->total,
             ];
         }
@@ -79,22 +91,99 @@ class PosTerminal extends Component
     // ── Add dish to cart ──────────────────────────────────────────────
     public function addToCart(int $dishId): void
     {
-        $dish = Dish::find($dishId);
+        $dish = Dish::with('modifierGroups.modifiers')->find($dishId);
         if (!$dish || !$dish->is_available) return;
 
-        $key = "dish_{$dishId}";
+        if ($dish->modifierGroups->count() > 0) {
+            // Open modal
+            $this->selectedDishForModifiers = $dish->id;
+            $this->selectedModifiers = [];
+            $this->showModifierModal = true;
+            return;
+        }
+
+        $this->insertIntoCart($dish, []);
+    }
+
+    public function toggleModifier(int $groupId, int $modifierId, bool $isMultiple): void
+    {
+        if (!$isMultiple) {
+            $this->selectedModifiers[$groupId] = [$modifierId];
+        } else {
+            if (!isset($this->selectedModifiers[$groupId])) {
+                $this->selectedModifiers[$groupId] = [];
+            }
+            $index = array_search($modifierId, $this->selectedModifiers[$groupId]);
+            if ($index !== false) {
+                unset($this->selectedModifiers[$groupId][$index]);
+                $this->selectedModifiers[$groupId] = array_values($this->selectedModifiers[$groupId]); // reindex
+            } else {
+                $this->selectedModifiers[$groupId][] = $modifierId;
+            }
+        }
+    }
+
+    public function confirmModifiers(): void
+    {
+        $dish = Dish::with('modifierGroups.modifiers')->find($this->selectedDishForModifiers);
+        if (!$dish) return;
+
+        // Validation: Check required groups
+        foreach ($dish->modifierGroups as $group) {
+            if ($group->is_required && empty($this->selectedModifiers[$group->id] ?? [])) {
+                session()->flash('error', "Debes seleccionar una opción en: {$group->name}");
+                return;
+            }
+        }
+
+        $modifiersToAdd = [];
+        $extraPrice = 0;
+
+        foreach ($dish->modifierGroups as $group) {
+            if (isset($this->selectedModifiers[$group->id])) {
+                foreach ($this->selectedModifiers[$group->id] as $modId) {
+                    $mod = $group->modifiers->firstWhere('id', $modId);
+                    if ($mod) {
+                        $modifiersToAdd[] = [
+                            'id' => $mod->id,
+                            'name' => $mod->name,
+                            'price' => (float) $mod->price,
+                        ];
+                        $extraPrice += (float) $mod->price;
+                    }
+                }
+            }
+        }
+
+        $this->insertIntoCart($dish, $modifiersToAdd, $extraPrice);
+        $this->showModifierModal = false;
+        $this->selectedDishForModifiers = null;
+        $this->selectedModifiers = [];
+    }
+
+    private function insertIntoCart(Dish $dish, array $modifiers = [], float $extraPrice = 0): void
+    {
+        // Generate a unique key based on dish ID and selected modifiers
+        $modIds = array_column($modifiers, 'id');
+        sort($modIds);
+        $hash = md5($dish->id . implode('_', $modIds));
+
+        $key = "dish_{$hash}";
+
         if (isset($this->cart[$key])) {
             $this->cart[$key]['quantity']++;
             $this->cart[$key]['line_total'] = round($this->cart[$key]['quantity'] * $this->cart[$key]['unit_price'], 2);
         } else {
+            $unitPrice = (float) $dish->price + $extraPrice;
             $this->cart[$key] = [
                 'order_item_id' => null,
                 'dish_id'       => $dish->id,
                 'name'          => $dish->name,
-                'unit_price'    => (float) $dish->price,
+                'unit_price'    => $unitPrice,
                 'quantity'      => 1,
                 'notes'         => '',
-                'line_total'    => (float) $dish->price,
+                'modifiers'     => $modifiers,
+                'line_total'    => $unitPrice,
             ];
         }
     }
@@ -202,6 +291,17 @@ class PosTerminal extends Component
                 'sent_at'    => now(),
             ]);
 
+            if (!empty($item['modifiers'])) {
+                foreach ($item['modifiers'] as $mod) {
+                    \App\Models\OrderItemModifier::create([
+                        'order_item_id' => $orderItem->id,
+                        'modifier_id'   => $mod['id'],
+                        'modifier_name' => $mod['name'],
+                        'price'         => $mod['price'],
+                    ]);
+                }
+            }
+
             // Mark as saved
             $this->cart[$key]['order_item_id'] = $orderItem->id;
         }
@@ -239,7 +339,13 @@ class PosTerminal extends Component
     public function backToTables(): void
     {
         $this->view = 'tables';
-        $this->reset(['cart', 'selectedTableId', 'currentOrderId', 'splitWays']);
+        $this->reset(['cart', 'selectedTableId', 'currentOrderId', 'splitWays', 'showModifierModal', 'selectedDishForModifiers']);
+    }
+
+    public function getActiveDishForModifiersProperty()
+    {
+        if (!$this->selectedDishForModifiers) return null;
+        return Dish::with('modifierGroups.modifiers')->find($this->selectedDishForModifiers);
     }
 
     // ── Dishes for current category/search ────────────────────────────

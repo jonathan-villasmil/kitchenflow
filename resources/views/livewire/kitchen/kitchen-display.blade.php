@@ -104,9 +104,20 @@
                                     <div class="font-mono text-xl font-bold">{{ $item->quantity }}</div>
                                     <div class="flex-1">
                                         <div class="font-bold text-lg group-hover:text-orange-400">{{ $item->name }}</div>
+                                        
+                                        @if($item->modifiers->count() > 0)
+                                            <div class="mt-1 space-y-0.5">
+                                                @foreach($item->modifiers as $mod)
+                                                    <div class="text-sm font-bold text-red-400 flex items-center gap-1">
+                                                        <span>↳</span> {{ $mod->modifier_name }}
+                                                    </div>
+                                                @endforeach
+                                            </div>
+                                        @endif
+
                                         @if($item->notes)
-                                            <div class="text-sm text-yellow-500 bg-yellow-900/20 p-2 mt-1 rounded italic">
-                                                ⚠️ {{ $item->notes }}
+                                            <div class="text-sm text-yellow-500 bg-yellow-900/20 p-2 mt-2 rounded italic font-medium border border-yellow-700/50">
+                                                ⚠️ "{{ $item->notes }}"
                                             </div>
                                         @endif
                                     </div>

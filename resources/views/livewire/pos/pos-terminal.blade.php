@@ -69,8 +69,15 @@
                                 <button wire:click="removeFromCart('{{ $key }}')" class="w-8 h-8 bg-gray-700 rounded flex items-center justify-center font-bold">-</button>
                             </div>
                             <div class="flex-1">
-                                <div class="font-bold">{{ $item['name'] }}</div>
-                                <div class="text-sm text-gray-400">€{{ number_format($item['unit_price'], 2) }}</div>
+                                <div class="font-bold whitespace-normal leading-tight">{{ $item['name'] }}</div>
+                                @if(!empty($item['modifiers']))
+                                    <div class="text-xs text-orange-400 mt-1 space-y-0.5">
+                                        @foreach($item['modifiers'] as $mod)
+                                            <div>+ {{ $mod['name'] }}</div>
+                                        @endforeach
+                                    </div>
+                                @endif
+                                <div class="text-sm text-gray-400 mt-1">€{{ number_format($item['unit_price'], 2) }}</div>
                                 @if($item['order_item_id'])
                                     <span class="text-xs bg-green-900 text-green-300 px-2 py-0.5 rounded mt-1 inline-block">Enviado</span>
                                 @else
@@ -160,6 +167,82 @@
                 </div>
             </div>
             
+            <!-- MODIFIER MODAL -->
+            @if($showModifierModal && $this->activeDishForModifiers)
+            <div class="fixed inset-0 bg-black/80 flex items-center justify-center z-50">
+                <div class="bg-gray-900 rounded-2xl w-full max-w-2xl overflow-hidden border border-gray-700 shadow-2xl flex flex-col max-h-[90vh]">
+                    <div class="p-6 border-b border-gray-800 flex justify-between items-center bg-gray-950 shrink-0">
+                        <div>
+                            <h3 class="text-2xl font-bold">Personalizar</h3>
+                            <div class="text-orange-500 font-bold text-lg">{{ $this->activeDishForModifiers->name }}</div>
+                        </div>
+                        <button wire:click="$set('showModifierModal', false)" class="text-gray-400 hover:text-white w-10 h-10 flex items-center justify-center rounded-full bg-gray-800 hover:bg-gray-700 transition">✕</button>
+                    </div>
+
+                    <!-- ERROR MESSAGE FOR REQUIRED GROUPS -->
+                    @if(session()->has('error'))
+                        <div class="bg-red-900/50 border-l-4 border-red-500 px-6 py-3 shrink-0">
+                            <div class="text-red-200 font-bold">{{ session('error') }}</div>
+                        </div>
+                    @endif
+
+                    <div class="p-6 overflow-y-auto flex-1 bg-gray-900 space-y-8">
+                        @foreach($this->activeDishForModifiers->modifierGroups as $group)
+                            <div class="border border-gray-800 rounded-xl overflow-hidden bg-gray-950">
+                                <div class="bg-gray-800/50 px-4 py-3 border-b border-gray-800 flex justify-between items-center">
+                                    <h4 class="font-bold text-lg">{{ $group->name }}</h4>
+                                    <div class="flex gap-2 text-xs font-bold uppercase tracking-wider">
+                                        @if($group->is_required)
+                                            <span class="bg-orange-500/20 text-orange-400 px-2 py-1 rounded">Obligatorio</span>
+                                        @else
+                                            <span class="bg-gray-700 text-gray-400 px-2 py-1 rounded">Opcional</span>
+                                        @endif
+                                        @if(!$group->is_multiple_choice)
+                                            <span class="bg-blue-500/20 text-blue-400 px-2 py-1 rounded">Elige 1</span>
+                                        @endif
+                                    </div>
+                                </div>
+                                <div class="p-2 space-y-1">
+                                    @foreach($group->modifiers as $mod)
+                                        @php
+                                            $isSelected = false;
+                                            if (isset($selectedModifiers[$group->id]) && in_array($mod->id, $selectedModifiers[$group->id])) {
+                                                $isSelected = true;
+                                            }
+                                        @endphp
+                                        <button wire:click="toggleModifier({{ $group->id }}, {{ $mod->id }}, {{ $group->is_multiple_choice ? 'true' : 'false' }})" 
+                                            class="w-full flex justify-between items-center p-4 rounded-lg transition {{ $isSelected ? 'bg-orange-500/20 border border-orange-500/50 text-white' : 'hover:bg-gray-800 border border-transparent text-gray-300' }}">
+                                            <div class="flex items-center gap-3">
+                                                <div class="w-6 h-6 rounded {{ $group->is_multiple_choice ? 'border-2 border-gray-600' : 'border-2 border-gray-600 rounded-full' }} flex items-center justify-center transition-colors {{ $isSelected ? ($group->is_multiple_choice ? 'bg-orange-500 border-orange-500' : 'border-orange-500') : '' }}">
+                                                    @if($isSelected)
+                                                        @if($group->is_multiple_choice)
+                                                            <svg class="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M5 13l4 4L19 7"></path></svg>
+                                                        @else
+                                                            <div class="w-3 h-3 bg-orange-500 rounded-full"></div>
+                                                        @endif
+                                                    @endif
+                                                </div>
+                                                <span class="font-medium text-lg">{{ $mod->name }}</span>
+                                            </div>
+                                            @if($mod->price > 0)
+                                                <span class="font-bold {{ $isSelected ? 'text-orange-400' : 'text-gray-400' }}">+€{{ number_format($mod->price, 2) }}</span>
+                                            @endif
+                                        </button>
+                                    @endforeach
+                                </div>
+                            </div>
+                        @endforeach
+                    </div>
+
+                    <div class="p-6 border-t border-gray-800 bg-gray-950 shrink-0">
+                        <button wire:click="confirmModifiers" class="w-full py-4 bg-orange-600 hover:bg-orange-500 rounded-xl font-bold text-xl transition flex justify-center items-center gap-2">
+                            Añadir al Pedido
+                        </button>
+                    </div>
+                </div>
+            </div>
+            @endif
+
             <!-- PAYMENT MODAL -->
             @if($showPaymentModal)
             <div class="fixed inset-0 bg-black/80 flex items-center justify-center z-50">

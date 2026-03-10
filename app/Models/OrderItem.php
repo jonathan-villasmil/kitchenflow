@@ -30,4 +30,9 @@ class OrderItem extends Model
     {
         return $this->belongsTo(Dish::class);
     }
+
+    public function modifiers(): \Illuminate\Database\Eloquent\Relations\HasMany
+    {
+        return $this->hasMany(OrderItemModifier::class);
+    }
 }

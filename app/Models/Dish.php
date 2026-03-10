@@ -37,9 +37,9 @@ class Dish extends Model
         return $this->belongsTo(MenuCategory::class, 'menu_category_id');
     }
 
-    public function modifierGroups(): HasMany
+    public function modifierGroups(): \Illuminate\Database\Eloquent\Relations\BelongsToMany
     {
-        return $this->hasMany(DishModifierGroup::class);
+        return $this->belongsToMany(ModifierGroup::class, 'dish_modifier_group', 'dish_id', 'modifier_group_id')->withTimestamps();
     }
 
     public function getMarginAttribute(): float
