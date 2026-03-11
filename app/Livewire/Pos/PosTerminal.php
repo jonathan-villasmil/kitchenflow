@@ -55,6 +55,8 @@ class PosTerminal extends Component
     public string $paymentMethod = 'cash';
     public float $cashReceived = 0;
     public int $splitWays = 1;
+    public float $tipAmount = 0;
+    public ?int $tipPercentage = null;
 
     public function mount(): void
     {
@@ -378,9 +380,26 @@ class PosTerminal extends Component
         return round($this->subtotal + $this->tax, 2);
     }
 
+    public function getGrandTotalProperty(): float
+    {
+        return round($this->total + $this->tipAmount, 2);
+    }
+
     public function getChangeProperty(): float
     {
-        return max(0, $this->cashReceived - ($this->total / $this->splitWays));
+        return max(0, $this->cashReceived - ($this->grandTotal / $this->splitWays));
+    }
+
+    public function setTip(?int $percentage, ?float $amount = null): void
+    {
+        $this->tipPercentage = $percentage;
+        if ($percentage !== null) {
+            $this->tipAmount = round($this->total * ($percentage / 100), 2);
+        } elseif ($amount !== null) {
+            $this->tipAmount = round($amount, 2);
+        } else {
+            $this->tipAmount = 0;
+        }
     }
 
     public function incrementSplit(): void
@@ -465,18 +484,22 @@ class PosTerminal extends Component
         if (!$this->currentOrderId || !$this->activeRegister) return;
 
         $order = Order::find($this->currentOrderId);
-        $order->update(['status' => 'paid', 'closed_at' => now()]);
+        $order->update([
+            'status' => 'paid', 
+            'closed_at' => now(),
+            'tip_amount' => $this->tipAmount,
+        ]);
 
         if ($this->paymentMethod === 'cash') {
             CashRegisterTransaction::create([
                 'cash_register_id' => $this->activeRegister->id,
                 'user_id'          => auth()->id(),
                 'type'             => 'sale',
-                'amount'           => $this->total,
+                'amount'           => $this->grandTotal,
                 'payment_method'   => 'cash',
                 'reference_type'   => Order::class,
                 'reference_id'     => $order->id,
-                'notes'            => 'Cobro Mesa ' . ($this->selectedTableId ? Table::find($this->selectedTableId)->number : 'Barra'),
+                'notes'            => 'Cobro Mesa ' . ($this->selectedTableId ? Table::find($this->selectedTableId)->number : 'Barra') . ($this->tipAmount > 0 ? " (Inc. propina €{$this->tipAmount})" : ''),
             ]);
         }
 
@@ -484,7 +507,9 @@ class PosTerminal extends Component
             Table::where('id', $this->selectedTableId)->update(['status' => 'available']);
         }
 
-        $this->reset(['cart', 'currentOrderId', 'selectedTableId', 'showPaymentModal', 'splitWays']);
+        $this->dispatch('print-receipt', url: route('pos.receipt', $order->id));
+
+        $this->reset(['cart', 'currentOrderId', 'selectedTableId', 'showPaymentModal', 'splitWays', 'tipAmount', 'tipPercentage', 'cashReceived']);
         $this->view = 'tables';
         session()->flash('success', '✅ Pago procesado correctamente');
     }
@@ -492,7 +517,7 @@ class PosTerminal extends Component
     public function backToTables(): void
     {
         $this->view = 'tables';
-        $this->reset(['cart', 'selectedTableId', 'currentOrderId', 'splitWays', 'showModifierModal', 'selectedDishForModifiers']);
+        $this->reset(['cart', 'selectedTableId', 'currentOrderId', 'splitWays', 'showModifierModal', 'selectedDishForModifiers', 'tipAmount', 'tipPercentage', 'cashReceived']);
     }
 
     public function getActiveDishForModifiersProperty()

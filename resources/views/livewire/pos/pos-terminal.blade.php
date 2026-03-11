@@ -261,7 +261,28 @@
                     <div class="p-6">
                         <div class="text-center mb-6">
                             <div class="text-gray-400">Total a pagar</div>
-                            <div class="text-5xl font-bold text-orange-500">€{{ number_format($this->total, 2) }}</div>
+                            <div class="text-5xl font-bold text-orange-500">€{{ number_format($this->grandTotal, 2) }}</div>
+                            @if($tipAmount > 0)
+                                <div class="text-orange-400 mt-2 font-bold">+ €{{ number_format($tipAmount, 2) }} de propina incl.</div>
+                            @endif
+                        </div>
+
+                        <!-- PROPINA (TIP) -->
+                        <div class="mb-6 bg-gray-950 p-4 rounded-xl border border-gray-800">
+                            <div class="text-gray-400 font-bold mb-3 text-center">Añadir Propina</div>
+                            <div class="grid grid-cols-4 gap-2 mb-3">
+                                <button wire:click="setTip(null)" class="py-2 rounded-lg font-bold border-2 transition {{ $tipPercentage === null && $tipAmount == 0 ? 'border-orange-500 bg-orange-900/40 text-orange-400' : 'border-gray-700 hover:bg-gray-800 text-gray-400' }}">0%</button>
+                                <button wire:click="setTip(5)" class="py-2 rounded-lg font-bold border-2 transition {{ $tipPercentage === 5 ? 'border-orange-500 bg-orange-900/40 text-orange-400' : 'border-gray-700 hover:bg-gray-800 text-gray-400' }}">5%</button>
+                                <button wire:click="setTip(10)" class="py-2 rounded-lg font-bold border-2 transition {{ $tipPercentage === 10 ? 'border-orange-500 bg-orange-900/40 text-orange-400' : 'border-gray-700 hover:bg-gray-800 text-gray-400' }}">10%</button>
+                                <button wire:click="setTip(15)" class="py-2 rounded-lg font-bold border-2 transition {{ $tipPercentage === 15 ? 'border-orange-500 bg-orange-900/40 text-orange-400' : 'border-gray-700 hover:bg-gray-800 text-gray-400' }}">15%</button>
+                            </div>
+                            <div class="flex items-center gap-2">
+                                <span class="text-gray-500 font-bold text-sm">Manual:</span>
+                                <div class="relative flex-1">
+                                    <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-gray-500">€</span>
+                                    <input wire:model.live="tipAmount" type="number" step="0.01" min="0" wire:change="$set('tipPercentage', null)" class="w-full bg-gray-900 border-gray-700 rounded-lg pl-8 pr-3 py-2 text-white focus:border-orange-500 focus:ring-orange-500 text-right font-mono" placeholder="0.00">
+                                </div>
+                            </div>
                         </div>
 
                         <!-- SPLIT BILL CALCULATOR -->
@@ -492,7 +513,9 @@
     <script>
         document.addEventListener('livewire:initialized', () => {
             Livewire.on('print-z-report', (event) => {
-                // Open the PDF in a new window/tab for printing
+                window.open(event[0].url, '_blank', 'width=400,height=600');
+            });
+            Livewire.on('print-receipt', (event) => {
                 window.open(event[0].url, '_blank', 'width=400,height=600');
             });
         });

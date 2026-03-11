@@ -44,6 +44,9 @@ class OrdersTable
                 TextColumn::make('total')
                     ->numeric()
                     ->sortable(),
+                TextColumn::make('tip_amount')
+                    ->numeric()
+                    ->sortable(),
                 TextColumn::make('opened_at')
                     ->dateTime()
                     ->sortable(),
@@ -63,6 +66,12 @@ class OrdersTable
                 //
             ])
             ->recordActions([
+                \Filament\Actions\Action::make('print')
+                    ->label('Imprimir Ticket')
+                    ->icon('heroicon-o-printer')
+                    ->url(fn (\App\Models\Order $record): string => route('pos.receipt', $record->id))
+                    ->openUrlInNewTab()
+                    ->visible(fn (\App\Models\Order $record): bool => in_array($record->status, ['paid'])),
                 EditAction::make(),
             ])
             ->toolbarActions([

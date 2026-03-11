@@ -25,4 +25,8 @@ Route::middleware(['auth', 'verified'])->group(function () {
     // Z-Report PDF Route
     Route::get('/pos/z-report/{register}', [\App\Http\Controllers\ZReportController::class, 'download'])
         ->name('pos.z-report');
+
+    // Customer Receipt Route
+    Route::get('/pos/receipt/{order}', [\App\Http\Controllers\ReceiptController::class, 'download'])
+        ->name('pos.receipt');
 });

@@ -14,7 +14,7 @@ class Order extends Model
     protected $fillable = [
         'number', 'restaurant_id', 'table_id', 'customer_id', 'user_id',
         'type', 'status', 'guests', 'subtotal', 'tax_amount',
-        'discount_amount', 'total', 'notes', 'opened_at', 'closed_at',
+        'discount_amount', 'total', 'tip_amount', 'notes', 'opened_at', 'closed_at',
     ];
 
     protected $casts = [
@@ -55,7 +55,7 @@ class Order extends Model
         return $this->belongsTo(Customer::class);
     }
 
-    public function waiter(): BelongsTo
+    public function user(): BelongsTo
     {
         return $this->belongsTo(User::class, 'user_id');
     }
