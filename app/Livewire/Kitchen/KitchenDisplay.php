@@ -36,6 +36,8 @@ class KitchenDisplay extends Component
             if ($order->items()->where('status', '!=', 'ready')->count() === 0) {
                 $order->update(['status' => 'ready']);
             }
+
+            broadcast(new \App\Events\OrderReadyForPickup($order))->toOthers();
         }
     }
 

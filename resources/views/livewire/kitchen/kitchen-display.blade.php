@@ -103,7 +103,14 @@
                                 <div class="flex gap-3">
                                     <div class="font-mono text-xl font-bold">{{ $item->quantity }}</div>
                                     <div class="flex-1">
-                                        <div class="font-bold text-lg group-hover:text-orange-400">{{ $item->name }}</div>
+                                        <div class="font-bold text-lg group-hover:text-orange-400">
+                                            @if($item->course == 1)
+                                                <span class="text-blue-400 text-sm border border-blue-500 bg-blue-900/40 px-1.5 py-0.5 rounded mr-1">1º</span>
+                                            @elseif($item->course == 2)
+                                                <span class="text-purple-400 text-sm border border-purple-500 bg-purple-900/40 px-1.5 py-0.5 rounded mr-1">2º</span>
+                                            @endif
+                                            {{ $item->name }}
+                                        </div>
                                         
                                         @if($item->modifiers->count() > 0)
                                             <div class="mt-1 space-y-0.5">

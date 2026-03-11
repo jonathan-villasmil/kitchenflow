@@ -225,6 +225,7 @@ class PosTerminal extends Component
                 'quantity'      => $item->quantity,
                 'notes'         => $item->notes ?? '',
                 'modifiers'     => $modifiers,
+                'course'        => $item->course ?? 1,
                 'line_total'    => (float) $item->total,
             ];
         }
@@ -325,6 +326,7 @@ class PosTerminal extends Component
                 'quantity'      => 1,
                 'notes'         => '',
                 'modifiers'     => $modifiers,
+                'course'        => 1,
                 'line_total'    => $unitPrice,
             ];
         }
@@ -342,6 +344,13 @@ class PosTerminal extends Component
             );
         } else {
             unset($this->cart[$key]);
+        }
+    }
+
+    public function toggleCourse(string $key): void
+    {
+        if (isset($this->cart[$key])) {
+            $this->cart[$key]['course'] = $this->cart[$key]['course'] == 1 ? 2 : 1;
         }
     }
 
@@ -415,7 +424,7 @@ class PosTerminal extends Component
     }
 
     // ── Send order to kitchen ─────────────────────────────────────────
-    public function sendToKitchen(): void
+    public function sendToKitchen(?int $course = null): void
     {
         if (empty($this->cart)) return;
 
@@ -435,8 +444,14 @@ class PosTerminal extends Component
             $order = Order::find($this->currentOrderId);
         }
 
+        $sentCount = 0;
+
         foreach ($this->cart as $key => $item) {
             if ($item['order_item_id']) continue; // already saved
+            
+            if ($course !== null && $item['course'] !== $course) {
+                continue; // Skip items not matching the selected course
+            }
 
             $orderItem = OrderItem::create([
                 'order_id'   => $order->id,
@@ -447,8 +462,11 @@ class PosTerminal extends Component
                 'total'      => $item['line_total'],
                 'notes'      => $item['notes'],
                 'status'     => 'sent',
+                'course'     => $item['course'],
                 'sent_at'    => now(),
             ]);
+
+            $sentCount++;
 
             if (!empty($item['modifiers'])) {
                 foreach ($item['modifiers'] as $mod) {
@@ -461,21 +479,22 @@ class PosTerminal extends Component
                 }
             }
 
-            // Mark as saved
             $this->cart[$key]['order_item_id'] = $orderItem->id;
         }
 
-        $order->recalculateTotals();
+        if ($sentCount > 0) {
+            $order->recalculateTotals();
 
-        // Update table status
-        if ($this->selectedTableId) {
-            Table::where('id', $this->selectedTableId)->update(['status' => 'occupied']);
+            // Update table status
+            if ($this->selectedTableId) {
+                Table::where('id', $this->selectedTableId)->update(['status' => 'occupied']);
+            }
+
+            // Broadcast to KDS (Reverb)
+            // event(new \App\Events\OrderSentToKitchen($order));
+
+            session()->flash('success', $course === null ? '✅ Pedido mandado completo' : "✅ Marchando Platos del Curso {$course}");
         }
-
-        // Broadcast to KDS (Reverb)
-        // event(new \App\Events\OrderSentToKitchen($order));
-
-        session()->flash('success', '✅ Pedido enviado a cocina');
     }
 
     // ── Process payment ───────────────────────────────────────────────
@@ -567,6 +586,23 @@ class PosTerminal extends Component
             ->orderBy('number')
             ->with('activeOrder')
             ->get();
+    }
+    public function getListeners()
+    {
+        if (auth()->check()) {
+            $restaurantId = auth()->user()->restaurant_id ?? 1;
+            return [
+                "echo-private:restaurant.{$restaurantId},OrderReadyForPickup" => 'notifyOrderReady',
+            ];
+        }
+        return [];
+    }
+
+    public function notifyOrderReady($event)
+    {
+        $orderNum = $event['order']['number'] ?? 'Desconocido';
+        $this->dispatch('play-sound', type: 'bell');
+        $this->dispatch('show-notification', message: "🔔 ¡Mesa lista para servir (Pedido #{$orderNum})!", type: 'success');
     }
 
     public function render()

@@ -70,13 +70,18 @@
                 <div class="flex-1 overflow-y-auto p-2">
                     @forelse($cart as $key => $item)
                         <div class="flex gap-2 p-3 bg-gray-800 rounded-lg mb-2 relative group {{ $item['order_item_id'] ? 'border-l-4 border-green-500' : 'border-l-4 border-orange-500' }}">
-                            <div class="flex flex-col gap-1">
+                            <div class="flex flex-col gap-1 items-center">
                                 <button wire:click="addToCart({{ $item['dish_id'] }})" class="w-8 h-8 bg-gray-700 rounded flex items-center justify-center font-bold">+</button>
                                 <div class="w-8 h-8 flex items-center justify-center font-bold">{{ $item['quantity'] }}</div>
                                 <button wire:click="removeFromCart('{{ $key }}')" class="w-8 h-8 bg-gray-700 rounded flex items-center justify-center font-bold">-</button>
                             </div>
                             <div class="flex-1">
-                                <div class="font-bold whitespace-normal leading-tight">{{ $item['name'] }}</div>
+                                <div class="flex justify-between items-start">
+                                    <div class="font-bold whitespace-normal leading-tight">{{ $item['name'] }}</div>
+                                    <button wire:click="toggleCourse('{{ $key }}')" class="ml-2 px-2 py-0.5 rounded text-xs font-bold border transition {{ $item['course'] == 1 ? 'border-blue-500 text-blue-400 bg-blue-900/40 hover:bg-blue-800' : 'border-purple-500 text-purple-400 bg-purple-900/40 hover:bg-purple-800' }}" title="Cambiar a {{ $item['course'] == 1 ? 'Segundos' : 'Primeros' }}">
+                                        {{ $item['course'] == 1 ? '1º' : '2º' }}
+                                    </button>
+                                </div>
                                 @if(!empty($item['modifiers']))
                                     <div class="text-xs text-orange-400 mt-1 space-y-0.5">
                                         @foreach($item['modifiers'] as $mod)
@@ -84,14 +89,16 @@
                                         @endforeach
                                     </div>
                                 @endif
-                                <div class="text-sm text-gray-400 mt-1">€{{ number_format($item['unit_price'], 2) }}</div>
-                                @if($item['order_item_id'])
-                                    <span class="text-xs bg-green-900 text-green-300 px-2 py-0.5 rounded mt-1 inline-block">Enviado</span>
-                                @else
-                                    <span class="text-xs bg-orange-900 text-orange-300 px-2 py-0.5 rounded mt-1 inline-block">Pendiente</span>
-                                @endif
+                                <div class="text-sm text-gray-400 mt-1 flex gap-2 items-center">
+                                    <span>€{{ number_format($item['unit_price'], 2) }}</span>
+                                    @if($item['order_item_id'])
+                                        <span class="text-xs bg-green-900 text-green-300 px-2 py-0.5 rounded">Enviado</span>
+                                    @else
+                                        <span class="text-xs bg-orange-900 text-orange-300 px-2 py-0.5 rounded">Pdte.</span>
+                                    @endif
+                                </div>
                             </div>
-                            <div class="font-bold">€{{ number_format($item['line_total'], 2) }}</div>
+                            <div class="font-bold pl-2 pt-1 flex items-start">€{{ number_format($item['line_total'], 2) }}</div>
                         </div>
                     @empty
                         <div class="h-full flex items-center justify-center text-gray-500">
@@ -115,10 +122,37 @@
                         <span>€{{ number_format($this->total, 2) }}</span>
                     </div>
 
+                    @php
+                        $hasPending1 = collect($cart)->contains(fn($i) => !$i['order_item_id'] && $i['course'] == 1);
+                        $hasPending2 = collect($cart)->contains(fn($i) => !$i['order_item_id'] && $i['course'] == 2);
+                    @endphp
                     <div class="grid grid-cols-2 gap-2">
-                        <button wire:click="sendToKitchen" class="py-4 bg-orange-600 hover:bg-orange-500 rounded-xl font-bold flex items-center justify-center gap-2">
-                            Marchar
-                        </button>
+                        @if($hasPending1 || $hasPending2)
+                            <div class="flex flex-col gap-1 col-span-1">
+                                @if($hasPending1 && $hasPending2)
+                                    <div class="flex gap-1 w-full">
+                                        <button wire:click="sendToKitchen(1)" class="flex-1 py-1.5 bg-blue-600 hover:bg-blue-500 rounded text-sm font-bold">1º</button>
+                                        <button wire:click="sendToKitchen(2)" class="flex-1 py-1.5 bg-purple-600 hover:bg-purple-500 rounded text-sm font-bold">2º</button>
+                                    </div>
+                                    <button wire:click="sendToKitchen" class="w-full py-2 bg-orange-600 hover:bg-orange-500 rounded-lg font-bold flex items-center justify-center gap-1 text-sm">
+                                        <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 19l9 2-9-18-9 18 9-2zm0 0v-8"></path></svg> 
+                                        Todo
+                                    </button>
+                                @elseif($hasPending1)
+                                    <button wire:click="sendToKitchen(1)" class="w-full h-full py-4 bg-blue-600 hover:bg-blue-500 rounded-xl font-bold flex items-center justify-center gap-2">
+                                        Marchar 1ºs
+                                    </button>
+                                @else
+                                    <button wire:click="sendToKitchen(2)" class="w-full h-full py-4 bg-purple-600 hover:bg-purple-500 rounded-xl font-bold flex items-center justify-center gap-2">
+                                        Marchar 2ºs
+                                    </button>
+                                @endif
+                            </div>
+                        @else
+                            <button disabled class="py-4 bg-gray-800 text-gray-500 rounded-xl font-bold flex items-center justify-center gap-2">
+                                Marchar
+                            </button>
+                        @endif
                         <button wire:click="$set('showPaymentModal', true)" @if(empty($cart)) disabled @endif class="py-4 bg-green-600 hover:bg-green-500 disabled:opacity-50 disabled:bg-gray-800 rounded-xl font-bold flex items-center justify-center gap-2">
                             Cobrar
                         </button>
@@ -517,6 +551,21 @@
             });
             Livewire.on('print-receipt', (event) => {
                 window.open(event[0].url, '_blank', 'width=400,height=600');
+            });
+
+            // Notification listener
+            Livewire.on('show-notification', (event) => {
+                const toast = document.createElement('div');
+                toast.className = `fixed bottom-4 left-1/2 transform -translate-x-1/2 px-8 py-5 rounded-xl shadow-2xl font-bold z-50 animate-bounce text-xl text-white ${event[0].type === 'success' ? 'bg-green-600' : 'bg-orange-600'}`;
+                toast.innerText = event[0].message;
+                document.body.appendChild(toast);
+                setTimeout(() => { toast.remove(); }, 5000);
+            });
+
+            // Sound listener
+            Livewire.on('play-sound', (event) => {
+                // In a real device we would play a bell sound
+                // new Audio('/sounds/bell.mp3').play();
             });
         });
     </script>
