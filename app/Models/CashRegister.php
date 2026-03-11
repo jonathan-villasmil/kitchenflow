@@ -32,12 +32,12 @@ class CashRegister extends Model
         return $this->belongsTo(Restaurant::class);
     }
 
-    public function openedBy()
+    public function opener()
     {
         return $this->belongsTo(User::class, 'opened_by');
     }
 
-    public function closedBy()
+    public function closer()
     {
         return $this->belongsTo(User::class, 'closed_by');
     }

@@ -105,15 +105,23 @@ class CashRegisterResource extends Resource
             ->recordTitleAttribute('id')
             ->columns([
                 TextColumn::make('id')->label('Turno #')->sortable(),
-                TextColumn::make('openedBy.name')
+                TextColumn::make('opener.name')
                     ->label('Abierto por')
                     ->sortable()
                     ->searchable(),
-                TextColumn::make('closedBy.name')
+                TextColumn::make('closer.name')
                     ->label('Cerrado por')
                     ->sortable()
                     ->searchable()
                     ->placeholder('-'),
+                TextColumn::make('cash_sales')
+                    ->label('Ventas (Efectivo)')
+                    ->money('EUR')
+                    ->getStateUsing(fn (CashRegister $record): float => $record->transactions()->where('type', 'sale')->where('payment_method', 'cash')->sum('amount')),
+                TextColumn::make('card_sales')
+                    ->label('Ventas (Tarjeta)')
+                    ->money('EUR')
+                    ->getStateUsing(fn (CashRegister $record): float => $record->transactions()->where('type', 'sale')->where('payment_method', 'card')->sum('amount')),
                 TextColumn::make('opening_amount')
                     ->label('Fondo Inicial')
                     ->money('EUR')
