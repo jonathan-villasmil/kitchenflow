@@ -2,40 +2,46 @@
 
 namespace App\Filament\Widgets;
 
+use App\Models\OrderItem;
 use Filament\Widgets\ChartWidget;
+use Filament\Widgets\Concerns\InteractsWithPageFilters;
+use Illuminate\Support\Facades\DB;
+use Illuminate\Support\Carbon;
 
 class TopDishesChart extends ChartWidget
 {
-    protected ?string $heading = 'Platos Más Vendidos (Top 5)';
-    protected static ?int $sort = 3;
+    use InteractsWithPageFilters;
+
+    protected ?string $heading = 'Platos Más Vendidos';
+    protected static ?int $sort = 1;
 
     protected function getData(): array
     {
-        $topDishes = \App\Models\OrderItem::select('dish_id', \Illuminate\Support\Facades\DB::raw('SUM(quantity) as total_sold'))
-            ->groupBy('dish_id')
-            ->orderByDesc('total_sold')
-            ->take(5)
-            ->with('dish')
-            ->get();
+        $startDate = $this->filters['startDate'] ?? today()->startOfDay();
+        $endDate = $this->filters['endDate'] ?? today()->endOfDay();
 
-        $labels = $topDishes->map(fn ($item) => $item->dish?->name ?? 'Desconocido')->toArray();
-        $data = $topDishes->map(fn ($item) => $item->total_sold)->toArray();
+        $topDishes = OrderItem::select('name', DB::raw('SUM(quantity) as total_sold'), DB::raw('SUM(total) as total_revenue'))
+            ->whereBetween('created_at', [
+                Carbon::parse($startDate)->startOfDay(),
+                Carbon::parse($endDate)->endOfDay()
+            ])
+            ->where('status', '!=', 'cancelled')
+            ->groupBy('name')
+            ->orderByDesc('total_sold')
+            ->limit(5)
+            ->get();
 
         return [
             'datasets' => [
                 [
                     'label' => 'Unidades Vendidas',
-                    'data' => $data,
+                    'data' => $topDishes->pluck('total_sold')->toArray(),
                     'backgroundColor' => [
-                        '#f59e0b', // Amber
-                        '#10b981', // Emerald
-                        '#3b82f6', // Blue
-                        '#ef4444', // Red
-                        '#8b5cf6', // Purple
+                        '#f97316', '#3b82f6', '#ef4444', '#10b981', '#8b5cf6'
                     ],
                 ],
             ],
-            'labels' => $labels,
+            'labels' => $topDishes->pluck('name')->toArray(),
         ];
     }
 
