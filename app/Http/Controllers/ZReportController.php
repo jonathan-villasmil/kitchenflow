@@ -16,7 +16,7 @@ class ZReportController extends Controller
         }
 
         // Load transactions grouped by type
-        $transactions = $register->transactions;
+        $transactions = $register->transactions->load('reference');
         $sales = $transactions->where('type', 'sale');
         
         $data = [
@@ -26,6 +26,9 @@ class ZReportController extends Controller
             'cashIn' => $transactions->where('type', 'cash_in')->sum('amount'),
             'cashOut' => $transactions->where('type', 'cash_out')->sum('amount'),
             'refunds' => $transactions->where('type', 'refund')->sum('amount'),
+            'tips' => $sales->sum(function ($transaction) {
+                return $transaction->reference?->tip_amount ?? 0;
+            }),
         ];
 
         // We load a view tailored for 80mm thermal receipt printers

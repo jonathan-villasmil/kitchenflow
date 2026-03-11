@@ -483,6 +483,8 @@ class PosTerminal extends Component
     {
         if (!$this->currentOrderId || !$this->activeRegister) return;
 
+        $this->tipAmount = max(0, (float) $this->tipAmount);
+
         $order = Order::find($this->currentOrderId);
         $order->update([
             'status' => 'paid', 

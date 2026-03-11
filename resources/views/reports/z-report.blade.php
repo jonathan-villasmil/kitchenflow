@@ -124,6 +124,17 @@
 
     <div class="divider"></div>
 
+    <h3 class="font-bold" style="margin: 5px 0;">PROPINAS RECAUDADAS</h3>
+    <div class="flex-between">
+        <div>Propinas incluidas en ventas:</div>
+        <div>€{{ number_format($tips, 2) }}</div>
+    </div>
+    <div style="font-size: 10px; color: #555; text-align: center; margin-top: 5px;">
+        (El importe en caja ya incluye estas propinas)
+    </div>
+
+    <div class="divider"></div>
+
     @if($register->notes)
         <div class="mb-4">
             <strong>Notas de Cierre:</strong><br>
