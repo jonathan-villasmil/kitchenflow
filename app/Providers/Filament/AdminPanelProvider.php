@@ -55,11 +55,13 @@ class AdminPanelProvider extends PanelProvider
             ->navigationItems([
                 NavigationItem::make('Terminal POS')
                     ->url(fn (): string => route('pos'))
+                    ->openUrlInNewTab()
                     ->icon('heroicon-o-computer-desktop')
                     ->group('Operaciones')
                     ->sort(1),
                 NavigationItem::make('Pantalla de Cocina (KDS)')
                     ->url(fn (): string => route('kds'))
+                    ->openUrlInNewTab()
                     ->icon('heroicon-o-fire')
                     ->group('Operaciones')
                     ->sort(2),

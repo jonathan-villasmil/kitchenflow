@@ -46,7 +46,7 @@
         </h1>
 
         <div class="flex gap-4">
-            <select wire:model.live="station" class="bg-gray-800 border-gray-700 rounded-lg text-white">
+            <select wire:model.live="station" wire:key="station-select" class="bg-gray-800 border-gray-700 rounded-lg text-white">
                 <option value="hot">🔥 Cocina Caliente</option>
                 <option value="cold">❄️ Cocina Fría</option>
                 <option value="bar">🍹 Barra</option>
@@ -69,7 +69,7 @@
     </div>
 
     <!-- TICKETS GRID -->
-    <div class="p-6 h-[calc(100vh-4rem)] overflow-y-auto overflow-x-hidden" wire:poll.5s>
+    <div class="p-6 h-[calc(100vh-4rem)] overflow-y-auto overflow-x-hidden relative" wire:poll.5s>
         <div class="flex flex-wrap gap-4 items-start">
             
             @forelse($this->activeOrders as $order)
@@ -79,7 +79,8 @@
                     $warning = $minutesWaiting > 10;
                 @endphp
 
-                <div class="w-80 bg-gray-900 border-2 rounded-xl flex flex-col overflow-hidden shadow-2xl transition-all
+                <div wire:key="order-{{ $order->id }}-{{ $order->updated_at->timestamp ?? 0 }}"
+                     class="w-80 bg-gray-900 border-2 rounded-xl flex flex-col overflow-hidden shadow-2xl transition-all
                             {{ $urgent ? 'border-red-500 animate-pulse' : ($warning ? 'border-orange-500' : 'border-gray-700') }}">
                     
                     <!-- Ticket Header -->
@@ -134,7 +135,7 @@
                     </div>
                 </div>
             @empty
-                <div class="w-full h-full flex flex-col items-center justify-center text-gray-500 gap-4 opacity-50 absolute inset-0">
+                <div class="w-full flex flex-col items-center justify-center text-gray-500 gap-4 opacity-50 absolute inset-0 pointer-events-none">
                     <svg class="w-24 h-24" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1" d="M5 3v4M3 5h4M6 17v4m-2-2h4m5-16l2.286 6.857L21 12l-5.714 2.143L13 21l-2.286-6.857L5 12l5.714-2.143L13 3z"></path></svg>
                     <div class="text-2xl font-bold">No hay pedidos pendientes en esta estación</div>
                 </div>

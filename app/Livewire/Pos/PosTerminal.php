@@ -53,9 +53,9 @@ class PosTerminal extends Component
     public string $view = 'tables'; // tables, pos, payment
     public bool $showPaymentModal = false;
     public string $paymentMethod = 'cash';
-    public float $cashReceived = 0;
+    public $cashReceived = 0;
     public int $splitWays = 1;
-    public float $tipAmount = 0;
+    public $tipAmount = 0;
     public ?int $tipPercentage = null;
 
     public function mount(): void
