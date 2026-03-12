@@ -45,15 +45,6 @@ return new class extends Migration
             $table->timestamps();
         });
 
-        // Modificadores aplicados a cada línea
-        Schema::create('order_item_modifiers', function (Blueprint $table) {
-            $table->id();
-            $table->foreignId('order_item_id')->constrained()->cascadeOnDelete();
-            $table->foreignId('dish_modifier_id')->nullable()->constrained()->nullOnDelete();
-            $table->string('name');
-            $table->decimal('price_adjustment', 8, 2)->default(0);
-            $table->timestamps();
-        });
 
         // Pagos
         Schema::create('payments', function (Blueprint $table) {

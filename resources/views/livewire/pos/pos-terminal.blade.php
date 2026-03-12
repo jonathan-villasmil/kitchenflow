@@ -1,4 +1,47 @@
 <div>
+    @if($isLocked)
+        <!-- PIN LOCK OVERLAY -->
+        <div class="fixed inset-0 bg-black/95 z-[100] flex flex-col items-center justify-center">
+            <div class="max-w-md w-full px-6 flex flex-col items-center">
+                <div class="bg-gray-800 p-4 rounded-full mb-6">
+                    <svg class="w-12 h-12 text-orange-500" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg>
+                </div>
+                <h2 class="text-3xl font-bold text-white mb-2">TPV {{ auth()->user()->restaurant->name ?? 'KitchenFlow' }}</h2>
+                <p class="text-gray-400 mb-8 text-center mt-2">Introduce tu PIN de 4 dígitos para acceder al terminal</p>
+
+                <!-- PIN Display -->
+                <div class="flex gap-4 mb-4">
+                    @for($i = 0; $i < 4; $i++)
+                        <div class="w-16 h-16 rounded-xl border-2 {{ strlen($enteredPin) > $i ? 'bg-orange-500 border-orange-500 text-white' : 'bg-gray-900 border-gray-700 text-transparent' }} flex items-center justify-center text-3xl font-bold transition-all">
+                            •
+                        </div>
+                    @endfor
+                </div>
+
+                @if($pinError)
+                    <div class="text-red-500 font-bold mb-4 animate-bounce">{{ $pinError }}</div>
+                @else
+                    <div class="h-6 mb-4"></div>
+                @endif
+
+                <!-- Numeric Keypad -->
+                <div class="grid grid-cols-3 gap-4 w-full max-w-[300px]">
+                    @foreach([1, 2, 3, 4, 5, 6, 7, 8, 9] as $num)
+                        <button wire:click="addPinDigit('{{ $num }}')" class="h-20 bg-gray-800 hover:bg-gray-700 active:bg-orange-500 active:scale-95 rounded-xl text-3xl font-bold transition flex items-center justify-center">{{ $num }}</button>
+                    @endforeach
+                    <button wire:click="clearPin" class="h-20 bg-red-900/50 hover:bg-red-800 text-red-500 active:scale-95 rounded-xl font-bold transition flex items-center justify-center">
+                        <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2M3 12l6.414 6.414a2 2 0 001.414.586H19a2 2 0 002-2V7a2 2 0 00-2-2h-8.172a2 2 0 00-1.414.586L3 12z"></path></svg>
+                    </button>
+                    <button wire:click="addPinDigit('0')" class="h-20 bg-gray-800 hover:bg-gray-700 active:bg-orange-500 active:scale-95 rounded-xl text-3xl font-bold transition flex items-center justify-center">0</button>
+                    <div class="h-20"></div>
+                </div>
+            </div>
+            
+            @if(auth()->user() && !auth()->user()->hasRole('camarero'))
+                <a href="{{ url('/admin') }}" data-navigate-ignore="true" class="absolute bottom-6 px-6 py-2 bg-gray-800 rounded-full text-gray-400 hover:text-white transition">Cerrar TPV (Volver a Admin)</a>
+            @endif
+        </div>
+    @else
     @if($view === 'tables')
         <!-- WIZARD STEP 1: SELECT TABLE -->
         <div class="p-6 h-full flex flex-col">
@@ -62,9 +105,14 @@
                         <h2 class="font-bold text-lg">Mesa {{ $selectedTableId ? App\Models\Table::find($selectedTableId)->number : '---' }}</h2>
                         <div class="text-sm text-gray-400">Orden {{ $currentOrderId ? '#'.str_pad($currentOrderId, 5, '0', STR_PAD_LEFT) : 'Nueva' }}</div>
                     </div>
-                    <button wire:click="backToTables" class="p-2 text-gray-400 hover:text-white rounded-lg hover:bg-gray-800">
-                        <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
-                    </button>
+                    <div class="flex gap-2">
+                        <button wire:click="lockPos" class="p-2 text-gray-400 hover:text-white rounded-lg hover:bg-gray-800" title="Bloquear Pantalla">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg>
+                        </button>
+                        <button wire:click="backToTables" class="p-2 text-gray-400 hover:text-white rounded-lg hover:bg-gray-800" title="Volver a Mesas">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                        </button>
+                    </div>
                 </div>
 
                 <div class="flex-1 overflow-y-auto p-2">
@@ -416,6 +464,52 @@
     </div>
     @endif
 
+    <!-- CANCELLATION PIN MODAL -->
+    @if($showCancellationModal)
+    <div class="fixed inset-0 bg-black/90 flex items-center justify-center z-[110] backdrop-blur-sm">
+        <div class="bg-gray-900 rounded-2xl w-full max-w-md overflow-hidden border-2 border-red-500 shadow-[0_0_30px_rgba(239,68,68,0.3)]">
+            <div class="p-6 border-b border-gray-800 bg-gray-950 text-center">
+                <div class="w-16 h-16 bg-red-500/20 text-red-500 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"></path></svg>
+                </div>
+                <h3 class="text-2xl font-bold text-white">Anulación de Plato</h3>
+                <p class="text-gray-400 mt-2">El plato ya ha sido enviado a cocina. Para anularlo, se requiere el PIN de un <strong>Gerente</strong>.</p>
+                @if($itemKeyToCancel)
+                <div class="mt-4 p-3 bg-red-900/30 rounded-lg text-red-400 font-bold">
+                    {{ $cart[$itemKeyToCancel]['name'] ?? 'Plato' }}
+                </div>
+                @endif
+            </div>
+            <div class="p-6 flex flex-col items-center">
+                <!-- PIN Display -->
+                <div class="flex gap-3 mb-6">
+                    @for($i = 0; $i < 4; $i++)
+                        <div class="w-12 h-12 rounded-lg border-2 {{ strlen($cancellationPin) > $i ? 'bg-red-500 border-red-500 text-white' : 'bg-gray-950 border-gray-700 text-transparent' }} flex items-center justify-center text-2xl font-bold transition-all">
+                            •
+                        </div>
+                    @endfor
+                </div>
+
+                @if($cancellationError)
+                    <div class="text-red-500 font-bold mb-4 animate-shake">{{ $cancellationError }}</div>
+                @else
+                    <div class="h-6 mb-4"></div>
+                @endif
+
+                <!-- Numeric Keypad -->
+                <div class="grid grid-cols-3 gap-3 w-full max-w-[260px]">
+                    @foreach([1, 2, 3, 4, 5, 6, 7, 8, 9] as $num)
+                        <button wire:click="addCancellationPinDigit('{{ $num }}')" class="h-16 bg-gray-800 hover:bg-gray-700 active:bg-red-500 active:scale-95 rounded-xl text-2xl font-bold transition flex items-center justify-center">{{ $num }}</button>
+                    @endforeach
+                    <button wire:click="$set('cancellationPin', '')" class="h-16 bg-gray-800 text-gray-500 rounded-xl font-bold flex items-center justify-center">C</button>
+                    <button wire:click="addCancellationPinDigit('0')" class="h-16 bg-gray-800 hover:bg-gray-700 active:bg-red-500 rounded-xl text-2xl font-bold transition flex items-center justify-center">0</button>
+                    <button wire:click="closeCancellationModal" class="h-16 bg-gray-700 text-white rounded-xl font-bold flex items-center justify-center">✕</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    @endif
+
     <!-- CLOSE REGISTER MODAL (Z-REPORT) -->
     @if($showCloseRegisterModal && $activeRegister)
     <div class="fixed inset-0 bg-black/90 flex items-center justify-center z-[100] backdrop-blur-sm">
@@ -574,6 +668,30 @@
                 // In a real device we would play a bell sound
                 // new Audio('/sounds/bell.mp3').play();
             });
+
+            // ─── Auto-Lock: Lock POS after 5 minutes of inactivity ───────────
+            let inactivityTimer;
+            const INACTIVITY_TIMEOUT = 5 * 60 * 1000; // 5 minutes in milliseconds
+
+            function resetInactivityTimer() {
+                clearTimeout(inactivityTimer);
+                inactivityTimer = setTimeout(() => {
+                    // Only lock if we are on the POS view (not tables or locked)
+                    const lockBtn = document.querySelector('[wire\\:click="lockPos"]');
+                    if (lockBtn) {
+                        @this.call('lockPos');
+                    }
+                }, INACTIVITY_TIMEOUT);
+            }
+
+            // Events that reset the inactivity timer
+            ['mousedown', 'touchstart', 'keydown', 'click'].forEach(event => {
+                document.addEventListener(event, resetInactivityTimer, { passive: true });
+            });
+
+            // Start the timer on initialization
+            resetInactivityTimer();
         });
     </script>
+    @endif
 </div>

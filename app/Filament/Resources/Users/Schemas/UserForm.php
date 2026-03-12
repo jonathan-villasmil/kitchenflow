@@ -33,6 +33,15 @@ class UserForm
                             ->dehydrated(fn ($state) => filled($state))
                             ->required(fn (string $context): bool => $context === 'create'),
 
+                        TextInput::make('pin')
+                            ->label('PIN de Caja (4 dígitos)')
+                            ->numeric()
+                            ->password()
+                            ->maxLength(4)
+                            ->minLength(4)
+                            ->revealable()
+                            ->unique(ignoreRecord: true),
+
                         Select::make('roles')
                             ->label('Rol del Sistema (Permisos)')
                             ->relationship('roles', 'name')

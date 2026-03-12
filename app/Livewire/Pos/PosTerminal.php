@@ -59,6 +59,17 @@ class PosTerminal extends Component
     public $tipAmount = 0;
     public ?int $tipPercentage = null;
 
+    // ─── Security / PIN Lock ───────────────────────────────────────────
+    public bool $isLocked = false;
+    public string $enteredPin = '';
+    public string $pinError = '';
+
+    // ─── Cancellation Interceptor ─────────────────────────────────────
+    public bool $showCancellationModal = false;
+    public ?string $itemKeyToCancel = null;
+    public string $cancellationPin = '';
+    public string $cancellationError = '';
+
     public function mount(): void
     {
         $user = auth()->user();
@@ -80,7 +91,7 @@ class PosTerminal extends Component
             ->where('status', 'open')
             ->first();
 
-        if (!$this->activeRegister) {
+        if (!$this->activeRegister && !$this->isLocked) {
             $this->showOpenRegisterModal = true;
         }
     }
@@ -100,6 +111,54 @@ class PosTerminal extends Component
 
         $this->showOpenRegisterModal = false;
         session()->flash('success', 'CAJA ABIERTA: Turno iniciado con €'.number_format($this->openingAmount, 2));
+    }
+
+    // ─── PIN Lock Logic ────────────────────────────────────────────────
+    public function lockPos(): void
+    {
+        $this->isLocked = true;
+        $this->enteredPin = '';
+        $this->pinError = '';
+        $this->showOpenRegisterModal = false;
+    }
+
+    public function addPinDigit(string $digit): void
+    {
+        if (strlen($this->enteredPin) < 4) {
+            $this->enteredPin .= $digit;
+            $this->pinError = '';
+        }
+
+        if (strlen($this->enteredPin) === 4) {
+            $this->verifyPin();
+        }
+    }
+
+    public function clearPin(): void
+    {
+        $this->enteredPin = '';
+        $this->pinError = '';
+    }
+
+    public function verifyPin(): void
+    {
+        $restaurantId = auth()->user()->restaurant_id ?? 1;
+        $user = \App\Models\User::where('pin', $this->enteredPin)
+            ->where('restaurant_id', $restaurantId)
+            ->first();
+
+        if ($user) {
+            auth()->login($user);
+            $this->isLocked = false;
+            $this->enteredPin = '';
+            $this->pinError = '';
+            
+            // Re-check register after login
+            $this->checkActiveRegister();
+        } else {
+            $this->pinError = 'PIN Incorrecto';
+            $this->enteredPin = '';
+        }
     }
 
     public function calculateCloseRegister(): void
@@ -338,6 +397,15 @@ class PosTerminal extends Component
     {
         if (!isset($this->cart[$key])) return;
 
+        // INTERCEPTOR: If item was already sent to kitchen, we need a Manager PIN to cancel it
+        if ($this->cart[$key]['order_item_id']) {
+            $this->showCancellationModal = true;
+            $this->itemKeyToCancel = $key;
+            $this->cancellationPin = '';
+            $this->cancellationError = '';
+            return;
+        }
+
         if ($this->cart[$key]['quantity'] > 1) {
             $this->cart[$key]['quantity']--;
             $this->cart[$key]['line_total'] = round(
@@ -346,6 +414,100 @@ class PosTerminal extends Component
         } else {
             unset($this->cart[$key]);
         }
+    }
+
+    public function addCancellationPinDigit(string $digit): void
+    {
+        if (strlen($this->cancellationPin) < 4) {
+            $this->cancellationPin .= $digit;
+            $this->cancellationError = '';
+        }
+
+        if (strlen($this->cancellationPin) === 4) {
+            $this->confirmCancellation();
+        }
+    }
+
+    public function confirmCancellation(): void
+    {
+        $restaurantId = auth()->user()->restaurant_id ?? 1;
+        
+        // Verify PIN belongs to a Manager or Admin
+        $manager = \App\Models\User::where('pin', $this->cancellationPin)
+            ->where('restaurant_id', $restaurantId)
+            ->role(['manager', 'super_admin'])
+            ->first();
+
+        if ($manager) {
+            $key = $this->itemKeyToCancel;
+            $orderItemId = $this->cart[$key]['order_item_id'];
+
+            // Update DB: Mark as cancelled instead of deleting for audit
+            if ($orderItemId) {
+                $item = OrderItem::find($orderItemId);
+                if ($item) {
+                    $item->update(['status' => 'cancelled']);
+                }
+            }
+
+            // Remove from local cart
+            unset($this->cart[$key]);
+
+            $this->showCancellationModal = false;
+            $this->itemKeyToCancel = null;
+            $this->cancellationPin = '';
+
+            // ── Check if order is now empty ─────────────────────────────────
+            // If cart is empty AND the order has no more active items in DB,
+            // cancel the order and free the table.
+            if (empty($this->cart) && $this->currentOrderId) {
+                $order = Order::find($this->currentOrderId);
+                
+                if ($order) {
+                    $activeItemsCount = $order->items()
+                        ->whereNotIn('status', ['cancelled'])
+                        ->count();
+
+                    if ($activeItemsCount === 0) {
+                        // Cancel the order entirely
+                        $order->update([
+                            'status'     => 'cancelled',
+                            'closed_at'  => now(),
+                        ]);
+
+                        // Free the table
+                        if ($this->selectedTableId) {
+                            Table::where('id', $this->selectedTableId)
+                                ->update(['status' => 'available']);
+                        }
+
+                        // Reset POS and go back to table view
+                        $this->reset(['cart', 'currentOrderId', 'selectedTableId', 'splitWays', 'tipAmount', 'tipPercentage', 'cashReceived']);
+                        $this->view = 'tables';
+
+                        session()->flash('success', '🗑️ Comanda anulada por ' . $manager->name . '. Mesa liberada.');
+                        return;
+                    }
+                }
+
+                // Still items remaining — just recalculate totals
+                $order?->recalculateTotals();
+            } elseif ($this->currentOrderId) {
+                Order::find($this->currentOrderId)?->recalculateTotals();
+            }
+
+            session()->flash('success', '✅ Plato anulado correctamente por ' . $manager->name);
+        } else {
+            $this->cancellationError = 'PIN de Gerente Incorrecto';
+            $this->cancellationPin = '';
+        }
+    }
+
+    public function closeCancellationModal(): void
+    {
+        $this->showCancellationModal = false;
+        $this->itemKeyToCancel = null;
+        $this->cancellationPin = '';
     }
 
     public function toggleCourse(string $key): void

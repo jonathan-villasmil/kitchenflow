@@ -42,6 +42,13 @@ class UsersTable
                     ->label('Restaurante Asignado')
                     ->searchable(),
 
+                \Filament\Tables\Columns\IconColumn::make('pin')
+                    ->label('PIN POS')
+                    ->boolean()
+                    ->getStateUsing(fn ($record): bool => filled($record->pin))
+                    ->trueIcon('heroicon-o-check-circle')
+                    ->falseIcon('heroicon-o-x-circle'),
+
                 TextColumn::make('created_at')
                     ->label('Miembro Desde')
                     ->dateTime('d M Y')

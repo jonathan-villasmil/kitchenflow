@@ -21,11 +21,13 @@ class User extends Authenticatable implements FilamentUser
         'email',
         'password',
         'restaurant_id',
+        'pin',
     ];
 
     protected $hidden = [
         'password',
         'remember_token',
+        'pin',
     ];
 
     protected function casts(): array
