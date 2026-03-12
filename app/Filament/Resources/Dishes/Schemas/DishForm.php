@@ -12,6 +12,8 @@ use Filament\Forms\Components\Select;
 use Filament\Forms\Components\Textarea;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\TagsInput;
+use Filament\Forms\Components\Repeater;
+use App\Models\InventoryItem;
 use Filament\Forms\Components\Toggle;
 use Filament\Schemas\Schema;
 
@@ -115,6 +117,28 @@ class DishForm
                                     'vegetariano', 'vegano', 'sin gluten', 'sin lactosa',
                                     'picante', 'especial', 'oferta', 'nuevo',
                                 ]),
+
+                            Repeater::make('ingredients')
+                                ->label('Escandallo (Ingredientes consumidos)')
+                                ->relationship()
+                                ->schema([
+                                    Select::make('inventory_item_id')
+                                        ->label('Artículo de Inventario')
+                                        ->options(fn () => InventoryItem::pluck('name', 'id'))
+                                        ->searchable()
+                                        ->required()
+                                        ->columnSpan(2),
+                                    TextInput::make('quantity')
+                                        ->label('Cantidad')
+                                        ->required()
+                                        ->numeric()
+                                        ->step(0.001)
+                                        ->columnSpan(1),
+                                ])
+                                ->columns(3)
+                                ->defaultItems(0)
+                                ->addActionLabel('Añadir ingrediente')
+                                ->columnSpanFull(),
                         ]),
 
                     Section::make('Imagen & Estado')

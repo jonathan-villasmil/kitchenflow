@@ -200,7 +200,14 @@
                                 @endif
                                 <div class="p-4 flex-1 flex flex-col justify-between bg-gray-900 w-full border-t border-gray-800">
                                     <div class="font-bold text-lg leading-tight line-clamp-2">{{ $dish->name }}</div>
-                                    <div class="text-orange-400 font-bold mt-2 text-xl">€{{ number_format($dish->price, 2) }}</div>
+                                    <div class="mt-2 flex items-center gap-2">
+                                        @if($dish->dynamic_price < $dish->price)
+                                            <span class="text-orange-400 font-bold text-xl">€{{ number_format($dish->dynamic_price, 2) }}</span>
+                                            <span class="text-gray-500 line-through text-md">€{{ number_format($dish->price, 2) }}</span>
+                                        @else
+                                            <span class="text-orange-400 font-bold text-xl">€{{ number_format($dish->price, 2) }}</span>
+                                        @endif
+                                    </div>
                                 </div>
                             </button>
                         @endforeach

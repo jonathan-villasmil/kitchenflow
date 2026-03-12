@@ -42,9 +42,48 @@ class Dish extends Model
         return $this->belongsToMany(ModifierGroup::class, 'dish_modifier_group', 'dish_id', 'modifier_group_id')->withTimestamps();
     }
 
+    public function ingredients(): \Illuminate\Database\Eloquent\Relations\BelongsToMany
+    {
+        return $this->belongsToMany(InventoryItem::class, 'dish_ingredients')
+                    ->withPivot('quantity')
+                    ->withTimestamps();
+    }
+
     public function getMarginAttribute(): float
     {
         if (!$this->cost || $this->cost == 0) return 0;
         return (($this->price - $this->cost) / $this->price) * 100;
+    }
+
+    public function getDynamicPriceAttribute(): float
+    {
+        $basePrice = (float) $this->price;
+        $lowestPrice = $basePrice;
+
+        $happyHours = HappyHour::where('restaurant_id', $this->restaurant_id)
+            ->where('is_active', true)
+            ->get();
+
+        foreach ($happyHours as $hh) {
+            if (!$hh->isActiveNow()) continue;
+
+            $applies = false;
+            if ($hh->target_type === 'all') {
+                $applies = true;
+            } elseif ($hh->target_type === 'menu_category' && $hh->target_id === $this->menu_category_id) {
+                $applies = true;
+            } elseif ($hh->target_type === 'dish' && $hh->target_id === $this->id) {
+                $applies = true;
+            }
+
+            if ($applies) {
+                $discountedPrice = $basePrice * (1 - ($hh->discount_percentage / 100));
+                if ($discountedPrice < $lowestPrice) {
+                    $lowestPrice = $discountedPrice;
+                }
+            }
+        }
+
+        return round($lowestPrice, 2);
     }
 }

@@ -9,6 +9,7 @@ use App\Models\MenuCategory;
 use App\Models\Order;
 use App\Models\OrderItem;
 use App\Models\Table;
+use App\Events\OrderPaid;
 use Livewire\Component;
 
 class PosTerminal extends Component
@@ -317,7 +318,7 @@ class PosTerminal extends Component
             $this->cart[$key]['quantity']++;
             $this->cart[$key]['line_total'] = round($this->cart[$key]['quantity'] * $this->cart[$key]['unit_price'], 2);
         } else {
-            $unitPrice = (float) $dish->price + $extraPrice;
+            $unitPrice = (float) $dish->dynamic_price + $extraPrice;
             $this->cart[$key] = [
                 'order_item_id' => null,
                 'dish_id'       => $dish->id,
@@ -527,6 +528,9 @@ class PosTerminal extends Component
         if ($this->selectedTableId) {
             Table::where('id', $this->selectedTableId)->update(['status' => 'available']);
         }
+
+        // Trigger Auto-Stock deduction
+        OrderPaid::dispatch($order);
 
         $this->dispatch('print-receipt', url: route('pos.receipt', $order->id));
 
