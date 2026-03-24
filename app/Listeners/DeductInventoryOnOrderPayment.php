@@ -39,19 +39,14 @@ class DeductInventoryOnOrderPayment
                     $requiredQuantity = $ingredientLine->pivot->quantity;
                     $totalDeduction = $requiredQuantity * $orderItem->quantity;
 
-                    // Deduct stock
-                    $inventoryItem->stock_current -= $totalDeduction;
-                    $inventoryItem->save();
-
-                    // Log movement
+                    // Log movement and trigger stock deduction via Model Hook
                     StockMovement::create([
+                        'restaurant_id' => $order->restaurant_id,
                         'inventory_item_id' => $inventoryItem->id,
-                        'user_id' => auth()->id() ?? 1, // System fallback
-                        'stock_old' => $inventoryItem->stock_current + $totalDeduction,
-                        'stock_new' => $inventoryItem->stock_current,
-                        'type' => 'out',
+                        'user_id' => $order->user_id ?? auth()->id() ?? 1,
+                        'type' => 'sale',
                         'quantity' => $totalDeduction,
-                        'reason' => "Venta automática (Pedido #{$order->id})",
+                        'notes' => "Venta automática (Pedido #{$order->id})",
                     ]);
                 }
             }

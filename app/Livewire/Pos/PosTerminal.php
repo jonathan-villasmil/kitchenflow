@@ -9,7 +9,11 @@ use App\Models\MenuCategory;
 use App\Models\Order;
 use App\Models\OrderItem;
 use App\Models\Table;
+use App\Models\Employee;
+use App\Models\Clocking;
+use App\Models\User;
 use App\Events\OrderPaid;
+use Filament\Notifications\Notification;
 use Livewire\Component;
 
 class PosTerminal extends Component
@@ -140,7 +144,7 @@ class PosTerminal extends Component
         $this->pinError = '';
     }
 
-    public function verifyPin(): void
+    public function verifyPin()
     {
         $restaurantId = auth()->user()->restaurant_id ?? 1;
         $user = \App\Models\User::where('pin', $this->enteredPin)
@@ -149,12 +153,9 @@ class PosTerminal extends Component
 
         if ($user) {
             auth()->login($user);
-            $this->isLocked = false;
-            $this->enteredPin = '';
-            $this->pinError = '';
+            session()->regenerate();
             
-            // Re-check register after login
-            $this->checkActiveRegister();
+            return redirect()->route('pos');
         } else {
             $this->pinError = 'PIN Incorrecto';
             $this->enteredPin = '';
@@ -586,6 +587,58 @@ class PosTerminal extends Component
         }
     }
 
+    public function getActiveClockingProperty()
+    {
+        $employee = Employee::where('user_id', auth()->id())->first();
+        if (!$employee) return null;
+
+        return Clocking::where('employee_id', $employee->id)
+            ->whereNull('clocked_out_at')
+            ->first();
+    }
+
+    public function fichar()
+    {
+        $employee = Employee::where('user_id', auth()->id())->first();
+
+        if (!$employee) {
+            Notification::make()
+                ->title('Sin ficha de empleado')
+                ->body('Debes estar registrado como Empleado para fichar.')
+                ->danger()
+                ->send();
+            return;
+        }
+
+        $active = $this->activeClocking;
+
+        if ($active) {
+            $active->update([
+                'clocked_out_at' => now(),
+                'total_minutes' => now()->diffInMinutes($active->clocked_in_at),
+            ]);
+
+            Notification::make()
+                ->title('Salida registrada')
+                ->body('Has terminado tu jornada, ' . $employee->first_name . '. ¡Buen descanso!')
+                ->success()
+                ->send();
+        } else {
+            Clocking::create([
+                'employee_id' => $employee->id,
+                'clocked_in_at' => now(),
+            ]);
+
+            Notification::make()
+                ->title('Entrada registrada')
+                ->body('Has comenzado tu jornada, ' . $employee->first_name . '. ¡Buen servicio!')
+                ->success()
+                ->send();
+        }
+
+        $this->dispatch('refresh-pos');
+    }
+
     // ── Send order to kitchen ─────────────────────────────────────────
     public function sendToKitchen(?int $course = null): void
     {
@@ -728,7 +781,54 @@ class PosTerminal extends Component
             $query->where('menu_category_id', $this->selectedCategoryId);
         }
 
-        return $query->orderBy('sort_order')->get();
+        return $query->orderBy('sort_order')->with('ingredients')->get();
+    }
+
+    // ── Real-Time Stock Map ────────────────────────────────────────────
+    // Returns: [ dish_id => ['portions' => int, 'status' => 'ok'|'low'|'out'] ]
+    public function getStockMapProperty(): array
+    {
+        $map = [];
+
+        foreach ($this->dishes as $dish) {
+            $ingredients = $dish->ingredients;
+
+            // No escandallo defined → no stock tracking for this dish
+            if ($ingredients->isEmpty()) {
+                $map[$dish->id] = ['portions' => null, 'status' => 'ok'];
+                continue;
+            }
+
+            $maxPortions = PHP_INT_MAX;
+
+            foreach ($ingredients as $inventoryItem) {
+                if (!$inventoryItem->track_stock) continue;
+
+                $required = (float) $inventoryItem->pivot->quantity;
+                if ($required <= 0) continue;
+
+                $available = (float) $inventoryItem->stock_current;
+                $portionsFromThis = (int) floor($available / $required);
+                $maxPortions = min($maxPortions, $portionsFromThis);
+            }
+
+            // Classify status
+            if ($maxPortions === PHP_INT_MAX) {
+                // No tracked ingredients found
+                $status = 'ok';
+                $maxPortions = null;
+            } elseif ($maxPortions <= 0) {
+                $status = 'out';
+            } elseif ($maxPortions <= 3) {
+                $status = 'low';
+            } else {
+                $status = 'ok';
+            }
+
+            $map[$dish->id] = ['portions' => $maxPortions, 'status' => $status];
+        }
+
+        return $map;
     }
 
     public function getCategoriesProperty()
@@ -755,13 +855,9 @@ class PosTerminal extends Component
     }
     public function getListeners()
     {
-        if (auth()->check()) {
-            $restaurantId = auth()->user()->restaurant_id ?? 1;
-            return [
-                "echo-private:restaurant.{$restaurantId},OrderReadyForPickup" => 'notifyOrderReady',
-            ];
-        }
-        return [];
+        return [
+            'refresh-pos' => '$refresh',
+        ];
     }
 
     public function notifyOrderReady($event)

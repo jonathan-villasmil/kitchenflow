@@ -33,20 +33,35 @@
                         <svg class="w-8 h-8" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 14l2-2m0 0l2-2m-2 2l-2-2m2 2l2 2M3 12l6.414 6.414a2 2 0 001.414.586H19a2 2 0 002-2V7a2 2 0 00-2-2h-8.172a2 2 0 00-1.414.586L3 12z"></path></svg>
                     </button>
                     <button wire:click="addPinDigit('0')" class="h-20 bg-gray-800 hover:bg-gray-700 active:bg-orange-500 active:scale-95 rounded-xl text-3xl font-bold transition flex items-center justify-center">0</button>
-                    <div class="h-20"></div>
+                    
+                    @if(auth()->user() && !auth()->user()->hasRole('camarero'))
+                        <a href="{{ url('/admin') }}" data-navigate-ignore="true" 
+                            class="h-20 bg-gray-800 hover:bg-gray-700 active:bg-orange-600 active:scale-95 rounded-xl text-gray-400 hover:text-white transition flex flex-col items-center justify-center gap-1 group">
+                            <svg class="w-7 h-7 group-hover:scale-110 transition-transform" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1"></path></svg>
+                            <span class="text-[9px] font-bold uppercase tracking-widest leading-none">Volver Admin</span>
+                        </a>
+                    @else
+                        <div class="h-20"></div>
+                    @endif
                 </div>
             </div>
-            
-            @if(auth()->user() && !auth()->user()->hasRole('camarero'))
-                <a href="{{ url('/admin') }}" data-navigate-ignore="true" class="absolute bottom-6 px-6 py-2 bg-gray-800 rounded-full text-gray-400 hover:text-white transition">Cerrar TPV (Volver a Admin)</a>
-            @endif
         </div>
     @else
     @if($view === 'tables')
         <!-- WIZARD STEP 1: SELECT TABLE -->
         <div class="p-6 h-full flex flex-col">
             <div class="flex justify-between items-center mb-6">
-                <h1 class="text-2xl font-bold">Seleccionar Mesa</h1>
+                <div>
+                    <h1 class="text-2xl font-bold">Seleccionar Mesa</h1>
+                    <div class="flex items-center gap-2 mt-1">
+                        <span class="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
+                        <span class="text-sm text-gray-400 font-medium">Sesión activa: <span class="text-white font-bold">{{ auth()->user()->name }}</span></span>
+                        <button wire:click="lockPos" class="ml-2 px-2 py-0.5 bg-gray-800 hover:bg-gray-700 text-xs text-orange-400 border border-orange-500/30 rounded-md transition flex items-center gap-1">
+                            <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 16l-4-4m0 0l4-4m-4 4h14m-5 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h7a3 3 0 013 3v1"></path></svg>
+                            Cambiar Usuario
+                        </button>
+                    </div>
+                </div>
                 <div class="flex gap-4">
                     <button wire:click="$set('orderType', 'takeaway')" class="px-4 py-2 rounded-lg {{ $orderType === 'takeaway' ? 'bg-orange-500' : 'bg-gray-800' }}">Para llevar</button>
                     <button wire:click="$set('orderType', 'delivery')" class="px-4 py-2 rounded-lg {{ $orderType === 'delivery' ? 'bg-orange-500' : 'bg-gray-800' }}">A domicilio</button>
@@ -58,6 +73,14 @@
                         </div>
                         <button wire:click="calculateCloseRegister" class="px-4 py-2 bg-purple-600 text-white rounded-lg font-bold shadow-lg hover:bg-purple-500 transition">Cerrar Caja (Reporte Z)</button>
                     @endif
+                    
+                    <!-- BOTÓN DE FICHAJE -->
+                    <button wire:click="fichar" 
+                        class="px-4 py-2 rounded-lg font-bold transition flex items-center gap-2 {{ $this->activeClocking ? 'bg-red-600 text-white hover:bg-red-500' : 'bg-green-600 text-white hover:bg-green-500' }}">
+                        <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                        {{ $this->activeClocking ? 'Fichar Salida' : 'Fichar Entrada' }}
+                    </button>
+
                     @if(auth()->user() && !auth()->user()->hasRole('camarero'))
                         <a href="{{ url('/admin') }}" data-navigate-ignore="true" class="px-4 py-2 bg-gray-700 rounded-lg text-gray-300 hover:bg-gray-600 transition">Volver Admin</a>
                     @else
@@ -106,6 +129,9 @@
                         <div class="text-sm text-gray-400">Orden {{ $currentOrderId ? '#'.str_pad($currentOrderId, 5, '0', STR_PAD_LEFT) : 'Nueva' }}</div>
                     </div>
                     <div class="flex gap-2">
+                        <button wire:click="fichar" class="p-2 {{ $this->activeClocking ? 'text-red-500 hover:text-red-400' : 'text-green-500 hover:text-green-400' }} rounded-lg hover:bg-gray-800" title="{{ $this->activeClocking ? 'Fichar Salida' : 'Fichar Entrada' }}">
+                            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
+                        </button>
                         <button wire:click="lockPos" class="p-2 text-gray-400 hover:text-white rounded-lg hover:bg-gray-800" title="Bloquear Pantalla">
                             <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z"></path></svg>
                         </button>
@@ -240,9 +266,25 @@
 
                     <div class="grid grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-4">
                         @foreach($this->dishes as $dish)
-                            <button wire:click="addToCart({{ $dish->id }})" class="bg-gray-800 rounded-xl overflow-hidden hover:ring-2 hover:ring-orange-500 transition text-left flex flex-col h-full active:scale-95 border-2 border-gray-700 hover:border-orange-500">
+                            @php
+                                $stockInfo = $this->stockMap[$dish->id] ?? ['portions' => null, 'status' => 'ok'];
+                                $isOut = $stockInfo['status'] === 'out';
+                                $isLow = $stockInfo['status'] === 'low';
+                            @endphp
+                            <button wire:click="{{ $isOut ? '' : 'addToCart('.$dish->id.')' }}"
+                                @if($isOut) disabled @endif
+                                class="bg-gray-800 rounded-xl overflow-hidden transition text-left flex flex-col h-full active:scale-95 border-2 relative
+                                {{ $isOut ? 'opacity-50 border-red-800 cursor-not-allowed' : 'hover:ring-2 hover:ring-orange-500 border-gray-700 hover:border-orange-500' }}">
+
+                                {{-- Stock Badge (top-right corner) --}}
+                                @if($isOut)
+                                    <div class="absolute top-2 right-2 z-10 px-2 py-1 bg-red-600 text-white text-xs font-bold rounded-full shadow-lg">SIN STOCK</div>
+                                @elseif($isLow)
+                                    <div class="absolute top-2 right-2 z-10 px-2 py-1 bg-yellow-500 text-black text-xs font-bold rounded-full shadow-lg animate-pulse">⚠ Quedan {{ $stockInfo['portions'] }}</div>
+                                @endif
+
                                 @if($dish->image)
-                                    <img src="{{ Storage::url($dish->image) }}" alt="{{ $dish->name }}" class="w-full h-40 object-cover shrink-0">
+                                    <img src="{{ Storage::url($dish->image) }}" alt="{{ $dish->name }}" class="w-full h-40 object-cover shrink-0 {{ $isOut ? 'grayscale' : '' }}">
                                 @else
                                     <div class="w-full h-40 shrink-0 bg-gray-700 flex items-center justify-center text-gray-500">Sin foto</div>
                                 @endif
