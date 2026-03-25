@@ -128,5 +128,11 @@ class DatabaseSeeder extends Seeder
             ]
         );
         $manager_user->assignRole('manager');
+
+        // ─── 7. Ejecutar Seeders de Datos Demo & Completo ─────────────
+        $this->call([
+            DemoDataSeeder::class,
+            ComprehensiveSeeder::class,
+        ]);
     }
 }
