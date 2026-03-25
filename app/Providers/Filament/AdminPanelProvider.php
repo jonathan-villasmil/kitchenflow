@@ -65,6 +65,11 @@ class AdminPanelProvider extends PanelProvider
                     ->icon('heroicon-o-fire')
                     ->group('Operaciones')
                     ->sort(2),
+                NavigationItem::make('Centro de Ayuda')
+                    ->url(fn (): string => route('help'))
+                    ->icon('heroicon-o-question-mark-circle')
+                    ->group('Soporte')
+                    ->sort(1),
             ])
             ->discoverResources(in: app_path('Filament/Resources'), for: 'App\Filament\Resources')
             ->discoverPages(in: app_path('Filament/Pages'), for: 'App\Filament\Pages')
