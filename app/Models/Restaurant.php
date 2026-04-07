@@ -12,7 +12,9 @@ class Restaurant extends Model
 
     protected $fillable = [
         'name', 'slug', 'address', 'phone', 'email',
-        'logo', 'timezone', 'currency', 'tax_rate', 'settings', 'is_active',
+        'logo', 'timezone', 'currency', 'tax_rate', 
+        'loyalty_points_per_unit', 'loyalty_redemption_rate',
+        'settings', 'is_active',
     ];
 
     protected $casts = [

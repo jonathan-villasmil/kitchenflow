@@ -29,7 +29,14 @@ class PosTerminal extends Component
     // ─── Current Order ─────────────────────────────────────────────────
     public array $cart = []; // [hash => ['dish_id' => int, 'name' => string, 'unit_price' => float, 'quantity' => int, 'notes' => '', 'modifiers' => [['id', 'name', 'price']]]]
     public ?int $currentOrderId = null;
+    public ?int $selectedCustomerId = null;
     public string $notes = '';
+
+    // ─── CRM / Customer Selection ──────────────────────────────────────
+    public bool $showCustomerModal = false;
+    public string $searchCustomerQuery = '';
+    public int $pointsToRedeem = 0;
+    public float $pointsDiscount = 0;
 
     // ─── Modifiers Modal ───────────────────────────────────────────────
     public bool $showModifierModal = false;
@@ -639,6 +646,56 @@ class PosTerminal extends Component
         $this->dispatch('refresh-pos');
     }
 
+    // ─── CRM / Customer Methods ───────────────────────────────────────
+    public function selectCustomer(?int $customerId): void
+    {
+        $this->selectedCustomerId = $customerId;
+        $this->showCustomerModal = false;
+        $this->searchCustomerQuery = '';
+        $this->pointsToRedeem = 0;
+        $this->pointsDiscount = 0;
+    }
+
+    public function getCustomersProperty()
+    {
+        $restaurantId = auth()->user()->restaurant_id ?? 1;
+        $query = \App\Models\Customer::where('restaurant_id', $restaurantId);
+        
+        if ($this->searchCustomerQuery) {
+            $query->where(function($q) {
+                $q->where('name', 'like', "%{$this->searchCustomerQuery}%")
+                  ->orWhere('phone', 'like', "%{$this->searchCustomerQuery}%");
+            });
+        }
+        
+        return $query->latest()->limit(10)->get();
+    }
+
+    public function getSelectedCustomerRecordProperty()
+    {
+        return $this->selectedCustomerId ? \App\Models\Customer::find($this->selectedCustomerId) : null;
+    }
+
+    public function toggleRedeemPoints(): void
+    {
+        if (!$this->selectedCustomerId) return;
+        
+        $customer = $this->selectedCustomerRecord;
+        $restaurant = auth()->user()->restaurant;
+        
+        if ($this->pointsToRedeem > 0) {
+            $this->pointsToRedeem = 0;
+            $this->pointsDiscount = 0;
+        } else {
+            // Max points that can be used based on total and customer balance
+            $maxPossibleDiscount = $this->total;
+            $pointsNeededForFullDiscount = (int) ($maxPossibleDiscount * $restaurant->loyalty_redemption_rate);
+            
+            $this->pointsToRedeem = min($customer->loyalty_points, $pointsNeededForFullDiscount);
+            $this->pointsDiscount = round($this->pointsToRedeem / $restaurant->loyalty_redemption_rate, 2);
+        }
+    }
+
     // ── Send order to kitchen ─────────────────────────────────────────
     public function sendToKitchen(?int $course = null): void
     {
@@ -725,6 +782,9 @@ class PosTerminal extends Component
             'status' => 'paid', 
             'closed_at' => now(),
             'tip_amount' => $this->tipAmount,
+            'customer_id' => $this->selectedCustomerId,
+            'discount_amount' => $this->pointsDiscount,
+            'total' => $this->grandTotal - $this->pointsDiscount,
         ]);
 
         if ($this->paymentMethod === 'cash') {
@@ -732,12 +792,37 @@ class PosTerminal extends Component
                 'cash_register_id' => $this->activeRegister->id,
                 'user_id'          => auth()->id(),
                 'type'             => 'sale',
-                'amount'           => $this->grandTotal,
+                'amount'           => $this->grandTotal - $this->pointsDiscount,
                 'payment_method'   => 'cash',
                 'reference_type'   => Order::class,
                 'reference_id'     => $order->id,
                 'notes'            => 'Cobro Mesa ' . ($this->selectedTableId ? Table::find($this->selectedTableId)->number : 'Barra') . ($this->tipAmount > 0 ? " (Inc. propina €{$this->tipAmount})" : ''),
             ]);
+        }
+
+        // ─── CRM: Add Loyalty Points ─────────────────────────────────
+        if ($this->selectedCustomerId) {
+            $customer = \App\Models\Customer::find($this->selectedCustomerId);
+            $restaurant = auth()->user()->restaurant;
+            
+            // Deduct points if used
+            if ($this->pointsToRedeem > 0) {
+                $customer->decrement('loyalty_points', $this->pointsToRedeem);
+            }
+            
+            // Add points for the current sale (on the net amount paid)
+            $netPaid = $this->total - $this->pointsDiscount;
+            $newPoints = (int) ($netPaid * ($restaurant->loyalty_points_per_unit ?? 1.0));
+            
+            if ($newPoints > 0) {
+                $customer->increment('loyalty_points', $newPoints);
+                
+                Notification::make()
+                    ->title('Puntos acumulados')
+                    ->body("{$customer->name} ha acumulado {$newPoints} puntos.")
+                    ->success()
+                    ->send();
+            }
         }
 
         if ($this->selectedTableId) {
@@ -749,7 +834,7 @@ class PosTerminal extends Component
 
         $this->dispatch('print-receipt', url: route('pos.receipt', $order->id));
 
-        $this->reset(['cart', 'currentOrderId', 'selectedTableId', 'showPaymentModal', 'splitWays', 'tipAmount', 'tipPercentage', 'cashReceived']);
+        $this->reset(['cart', 'currentOrderId', 'selectedTableId', 'showPaymentModal', 'splitWays', 'tipAmount', 'tipPercentage', 'cashReceived', 'selectedCustomerId', 'pointsToRedeem', 'pointsDiscount']);
         $this->view = 'tables';
         session()->flash('success', '✅ Pago procesado correctamente');
     }

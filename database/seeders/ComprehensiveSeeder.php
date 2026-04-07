@@ -146,37 +146,23 @@ class ComprehensiveSeeder extends Seeder
             }
         }
 
-        // ─── 5. Historial de Pedidos (Para Analytics) ────────────────────
-        $pedro = User::where('name', 'Pedro Cajero')->first();
-        $table1 = Table::where('number', '1')->first();
+        // ─── 6. Clientes (Para CRM) ───────────────────────────────────
+        $customersData = [
+            ['name' => 'Juan Pérez', 'email' => 'juanp@example.com', 'phone' => '600111222', 'points' => 150],
+            ['name' => 'María García', 'email' => 'maria@example.com', 'phone' => '600333444', 'points' => 2500],
+            ['name' => 'Carlos Rodríguez', 'email' => 'carlos@example.com', 'phone' => '600555666', 'points' => 0],
+        ];
 
-        if ($pedro && $table1) {
-            for ($i = 20; $i >= 0; $i--) {
-                $date = Carbon::now()->subDays($i)->setHour(rand(12, 22));
-                $order = Order::create([
-                    'number' => 'ORD-' . strtoupper(Str::random(6)),
+        foreach ($customersData as $cData) {
+            \App\Models\Customer::updateOrCreate(
+                ['email' => $cData['email']],
+                [
                     'restaurant_id' => $restaurant->id,
-                    'user_id' => $pedro->id,
-                    'table_id' => $table1->id,
-                    'status' => 'paid',
-                    'total' => rand(25, 120),
-                    'opened_at' => $date,
-                    'closed_at' => (clone $date)->addMinutes(45),
-                    'created_at' => $date,
-                    'updated_at' => $date
-                ]);
-
-                // Añadir un ítem ficticio
-                OrderItem::create([
-                    'order_id' => $order->id,
-                    'dish_id' => $hamburguesa->id ?? 1,
-                    'name' => $hamburguesa->name ?? 'Hamburguesa',
-                    'quantity' => rand(1, 3),
-                    'unit_price' => 12.50,
-                    'total' => 12.50,
-                    'status' => 'ready'
-                ]);
-            }
+                    'name' => $cData['name'],
+                    'phone' => $cData['phone'],
+                    'loyalty_points' => $cData['points']
+                ]
+            );
         }
     }
 }

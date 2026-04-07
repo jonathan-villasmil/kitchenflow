@@ -135,6 +135,14 @@
                         <div class="text-sm text-gray-400">Orden {{ $currentOrderId ? '#'.str_pad($currentOrderId, 5, '0', STR_PAD_LEFT) : 'Nueva' }}</div>
                     </div>
                     <div class="flex gap-2">
+                        <!-- CUSTOMER SELECTION BUTTON -->
+                        <button wire:click="$set('showCustomerModal', true)" class="flex items-center gap-2 px-3 py-1.5 rounded-lg transition {{ $selectedCustomerId ? 'bg-orange-500/20 border border-orange-500 text-orange-400' : 'bg-gray-800 border border-gray-700 text-gray-400 hover:text-white hover:border-gray-500' }}">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"></path></svg>
+                            <span class="text-xs font-bold whitespace-nowrap">
+                                {{ $selectedCustomerId ? Str::limit($this->selectedCustomerRecord->name, 10) : 'Cliente' }}
+                            </span>
+                        </button>
+
                         <button wire:click="fichar" class="p-2 {{ $this->activeClocking ? 'text-red-500 hover:text-red-400' : 'text-green-500 hover:text-green-400' }} rounded-lg hover:bg-gray-800" title="{{ $this->activeClocking ? 'Fichar Salida' : 'Fichar Entrada' }}">
                             <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
                         </button>
@@ -389,92 +397,149 @@
 
             <!-- PAYMENT MODAL -->
             @if($showPaymentModal)
-            <div class="fixed inset-0 bg-black/80 flex items-center justify-center z-50">
-                <div class="bg-gray-900 rounded-2xl w-full max-w-lg overflow-hidden border border-gray-700 shadow-2xl">
-                    <div class="p-6 border-b border-gray-800 flex justify-between items-center">
-                        <h3 class="text-2xl font-bold">Cobrar Cuenta</h3>
-                        <button wire:click="$set('showPaymentModal', false)" class="text-gray-400 hover:text-white">✕</button>
+            <div class="fixed inset-0 bg-black/80 flex items-center justify-center z-50 p-2 sm:p-4">
+                <div class="bg-gray-900 rounded-2xl w-full max-w-4xl overflow-hidden border border-gray-700 shadow-2xl flex flex-col max-h-[90vh]">
+                    <div class="p-4 border-b border-gray-800 flex justify-between items-center bg-gray-950 shrink-0">
+                        <div class="flex items-center gap-2">
+                            <span class="w-8 h-8 rounded-lg bg-orange-600 flex items-center justify-center">💶</span>
+                            <h3 class="text-xl font-bold">Finalizar Transacción</h3>
+                        </div>
+                        <button wire:click="$set('showPaymentModal', false)" class="text-gray-400 hover:text-white p-2 text-2xl">✕</button>
                     </div>
-                    <div class="p-6">
-                        <div class="text-center mb-6">
-                            <div class="text-gray-400">Total a pagar</div>
-                            <div class="text-5xl font-bold text-orange-500">€{{ number_format($this->grandTotal, 2) }}</div>
-                            @if($tipAmount > 0)
-                                <div class="text-orange-400 mt-2 font-bold">+ €{{ number_format($tipAmount, 2) }} de propina incl.</div>
-                            @endif
-                        </div>
-
-                        <!-- PROPINA (TIP) -->
-                        <div class="mb-6 bg-gray-950 p-4 rounded-xl border border-gray-800">
-                            <div class="text-gray-400 font-bold mb-3 text-center">Añadir Propina</div>
-                            <div class="grid grid-cols-4 gap-2 mb-3">
-                                <button wire:click="setTip(null)" class="py-2 rounded-lg font-bold border-2 transition {{ $tipPercentage === null && $tipAmount == 0 ? 'border-orange-500 bg-orange-900/40 text-orange-400' : 'border-gray-700 hover:bg-gray-800 text-gray-400' }}">0%</button>
-                                <button wire:click="setTip(5)" class="py-2 rounded-lg font-bold border-2 transition {{ $tipPercentage === 5 ? 'border-orange-500 bg-orange-900/40 text-orange-400' : 'border-gray-700 hover:bg-gray-800 text-gray-400' }}">5%</button>
-                                <button wire:click="setTip(10)" class="py-2 rounded-lg font-bold border-2 transition {{ $tipPercentage === 10 ? 'border-orange-500 bg-orange-900/40 text-orange-400' : 'border-gray-700 hover:bg-gray-800 text-gray-400' }}">10%</button>
-                                <button wire:click="setTip(15)" class="py-2 rounded-lg font-bold border-2 transition {{ $tipPercentage === 15 ? 'border-orange-500 bg-orange-900/40 text-orange-400' : 'border-gray-700 hover:bg-gray-800 text-gray-400' }}">15%</button>
+                    
+                    <div class="flex-1 overflow-y-auto min-h-0 grid grid-cols-2">
+                        <!-- LEFT COLUMN: SUMMARY & CRM -->
+                        <div class="p-4 md:p-6 border-b md:border-b-0 md:border-r border-gray-800 bg-gray-900/50">
+                            <div class="text-center mb-6 bg-gray-950 p-4 md:p-6 rounded-2xl border border-gray-800 shadow-inner">
+                                <div class="text-gray-400 text-[10px] font-bold uppercase tracking-widest mb-1">Total a cobrar</div>
+                                @if($pointsDiscount > 0)
+                                    <div class="text-xs text-gray-500 line-through">€{{ number_format($this->grandTotal, 2) }}</div>
+                                    <div class="text-5xl font-black text-green-500 tracking-tight">€{{ number_format($this->grandTotal - $pointsDiscount, 2) }}</div>
+                                    <div class="mt-1 inline-flex items-center gap-1 px-2 py-0.5 bg-green-900/30 text-green-400 border border-green-700/50 rounded-full text-[10px] font-bold">
+                                        ✨ - €{{ number_format($pointsDiscount, 2) }}
+                                    </div>
+                                @else
+                                    <div class="text-5xl font-black text-orange-500 tracking-tight">€{{ number_format($this->grandTotal, 2) }}</div>
+                                @endif
+                                
+                                @if($tipAmount > 0)
+                                    <div class="text-orange-400 mt-1 font-bold text-xs">+ €{{ number_format($tipAmount, 2) }} Propina</div>
+                                @endif
                             </div>
-                            <div class="flex items-center gap-2">
-                                <span class="text-gray-500 font-bold text-sm">Manual:</span>
-                                <div class="relative flex-1">
-                                    <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-gray-500">€</span>
-                                    <input wire:model.live="tipAmount" type="number" step="0.01" min="0" wire:change="$set('tipPercentage', null)" class="w-full bg-gray-900 border-gray-700 rounded-lg pl-8 pr-3 py-2 text-white focus:border-orange-500 focus:ring-orange-500 text-right font-mono" placeholder="0.00">
+
+                            <!-- LOYALTY POINTS REDEMPTION -->
+                            @if($selectedCustomerId)
+                            <div class="mb-4 p-3 bg-gray-950 rounded-xl border {{ $pointsToRedeem > 0 ? 'border-green-500 bg-green-900/10' : 'border-gray-800' }}">
+                                <div class="flex justify-between items-center">
+                                    <div class="flex items-center gap-2">
+                                        <div class="w-8 h-8 rounded-full bg-blue-600 flex items-center justify-center text-sm font-bold">
+                                            {{ substr($this->selectedCustomerRecord->name, 0, 1) }}
+                                        </div>
+                                        <div>
+                                            <div class="text-[9px] text-gray-500 font-bold uppercase tracking-wider">Puntos</div>
+                                            <div class="text-sm font-bold text-white">{{ $this->selectedCustomerRecord->loyalty_points }} <span class="text-gray-500 text-[10px] font-normal">pts</span></div>
+                                        </div>
+                                    </div>
+                                    <button wire:click="toggleRedeemPoints" 
+                                        class="px-3 py-1.5 rounded-lg text-xs font-bold transition {{ $pointsToRedeem > 0 ? 'bg-red-600 hover:bg-red-500 text-white' : 'bg-blue-600 hover:bg-blue-500 text-white' }}">
+                                        {{ $pointsToRedeem > 0 ? 'Quitar' : 'Usar' }}
+                                    </button>
                                 </div>
                             </div>
+                            @endif
+
+                            <!-- SPLIT BILL -->
+                            <div class="bg-gray-950 p-4 rounded-xl border border-gray-800">
+                                <div class="flex items-center justify-between mb-3 text-sm">
+                                    <span class="text-gray-400 font-bold">Dividir cuenta:</span>
+                                    <div class="flex items-center gap-3">
+                                        <button wire:click="decrementSplit" class="w-8 h-8 bg-gray-800 hover:bg-gray-700 rounded-lg text-white font-bold transition border border-gray-700">-</button>
+                                        <span class="text-lg font-bold w-4 text-center">{{ $splitWays }}</span>
+                                        <button wire:click="incrementSplit" class="w-8 h-8 bg-gray-800 hover:bg-gray-700 rounded-lg text-white font-bold transition border border-gray-700">+</button>
+                                    </div>
+                                </div>
+                                @if($splitWays > 1)
+                                <div class="bg-yellow-900/20 border border-yellow-700/30 p-2 rounded-lg text-center">
+                                    <div class="text-xl font-black text-yellow-400">€{{ number_format($this->total / $splitWays, 2) }} <span class="text-[10px] uppercase font-bold text-yellow-600">p/p</span></div>
+                                </div>
+                                @endif
+                            </div>
                         </div>
 
-                        <!-- SPLIT BILL CALCULATOR -->
-                        <div class="mb-6 flex flex-col gap-2">
-                            <div class="flex items-center justify-between bg-gray-950 p-4 rounded-xl border border-gray-800">
-                                <span class="text-gray-400 font-bold text-lg">Dividir cuenta:</span>
-                                <div class="flex items-center gap-4">
-                                    <button wire:click="decrementSplit" class="w-10 h-10 bg-gray-700 hover:bg-gray-600 rounded-lg text-white font-bold text-2xl transition">-</button>
-                                    <span class="text-2xl font-bold w-6 text-center">{{ $splitWays }}</span>
-                                    <button wire:click="incrementSplit" class="w-10 h-10 bg-gray-700 hover:bg-gray-600 rounded-lg text-white font-bold text-2xl transition">+</button>
+                        <!-- RIGHT COLUMN: PAYMENT & TIPS -->
+                        <div class="p-4 md:p-6 bg-gray-900">
+                            <!-- METODO DE PAGO -->
+                            <div class="text-gray-400 font-bold uppercase tracking-widest text-[9px] mb-2">Método de Pago</div>
+                            <div class="grid grid-cols-2 gap-3 mb-4">
+                                <button wire:click="$set('paymentMethod', 'cash')" class="p-3 rounded-xl font-bold border-2 transition flex flex-col items-center gap-1 {{ $paymentMethod === 'cash' ? 'border-orange-500 bg-orange-950/40 text-orange-400 shadow-[0_0_15px_rgba(249,115,22,0.1)]' : 'border-gray-800 bg-gray-950 text-gray-500' }}">
+                                    <span class="text-xl">💵</span>
+                                    <span class="text-xs">Efectivo</span>
+                                </button>
+                                <button wire:click="$set('paymentMethod', 'card')" class="p-3 rounded-xl font-bold border-2 transition flex flex-col items-center gap-1 {{ $paymentMethod === 'card' ? 'border-orange-500 bg-orange-950/40 text-orange-400 shadow-[0_0_15px_rgba(249,115,22,0.1)]' : 'border-gray-800 bg-gray-950 text-gray-500' }}">
+                                    <span class="text-xl">💳</span>
+                                    <span class="text-xs">Tarjeta</span>
+                                </button>
+                            </div>
+
+                            <!-- PROPINA (TIP) -->
+                            <div class="mb-4">
+                                <div class="text-gray-400 font-bold uppercase tracking-widest text-[9px] mb-2">Añadir Propina</div>
+                                <div class="grid grid-cols-4 gap-1.5 mb-3">
+                                    @foreach([0, 5, 10, 15] as $p)
+                                        <button wire:click="setTip({{ $p == 0 ? 'null' : $p }})" 
+                                            class="py-1.5 rounded-lg text-xs font-bold border transition {{ ($p === 0 && $tipPercentage === null && $tipAmount == 0) || ($p > 0 && $tipPercentage === $p) ? 'border-orange-500 bg-orange-950 text-orange-400' : 'border-gray-800 bg-gray-950 text-gray-500' }}">
+                                            {{ $p }}%
+                                        </button>
+                                    @endforeach
+                                </div>
+                                <div class="relative group">
+                                    <span class="absolute inset-y-0 left-0 flex items-center pl-3 text-gray-500 font-bold text-xs">€</span>
+                                    <input wire:model.live="tipAmount" type="number" step="0.01" min="0" wire:change="$set('tipPercentage', null)" 
+                                        class="w-full bg-gray-950 border-gray-800 rounded-xl pl-6 pr-3 py-2 text-white focus:border-orange-500 focus:ring-0 text-right font-mono text-sm" placeholder="Manual">
                                 </div>
                             </div>
 
-                            @if($splitWays > 1)
-                            <div class="flex justify-between items-center bg-yellow-900/30 border border-yellow-700/50 p-4 rounded-xl">
-                                <span class="text-yellow-500 font-bold">Cada persona paga</span>
-                                <span class="text-3xl font-bold text-yellow-400">€{{ number_format($this->total / $splitWays, 2) }}</span>
+                            @if($paymentMethod === 'cash')
+                            <div class="space-y-3 animate-in fade-in slide-in-from-right-2 duration-300">
+                                <div class="relative text-center">
+                                    <label class="text-[9px] text-gray-500 font-bold uppercase tracking-widest mb-1 block">Efectivo recibido</label>
+                                    <input wire:model.live="cashReceived" id="cash_received_input" type="number" step="0.01" class="w-full bg-gray-950 border-gray-800 rounded-xl px-4 py-3 text-3xl font-black text-center text-orange-400 focus:border-orange-500 focus:ring-0 tracking-tight" autofocus>
+                                    
+                                    <div class="grid grid-cols-4 gap-1.5 mt-3">
+                                        @foreach([5, 10, 20, 50] as $bill)
+                                            <button wire:click="$set('cashReceived', {{ $bill }})" class="bg-gray-800 py-2 rounded-lg font-bold text-xs hover:bg-orange-600 transition hover:text-white shadow-sm border border-gray-700">€{{ $bill }}</button>
+                                        @endforeach
+                                    </div>
+                                </div>
+
+                                <div class="flex justify-between items-center bg-gray-950 p-4 rounded-xl border border-gray-800 shadow-inner">
+                                    <span class="text-gray-400 text-xs font-bold">Cambio:</span>
+                                    <span class="font-black text-2xl {{ $this->change > 0 ? 'text-green-400' : 'text-gray-600' }}">€{{ number_format($this->change, 2) }}</span>
+                                </div>
+                            </div>
+                            @else
+                            <div class="bg-gray-950/50 p-6 rounded-2xl border border-dashed border-gray-800 flex flex-col items-center justify-center text-center animate-in fade-in duration-500">
+                                <div class="w-12 h-12 bg-orange-600/10 rounded-full flex items-center justify-center mb-2">
+                                    <span class="text-2xl">⚡</span>
+                                </div>
+                                <div class="text-gray-300 font-bold text-sm">Cobro con Tarjeta</div>
+                                <div class="text-[10px] text-gray-500 mt-1">Usa el datáfono y pulsa confirmar.</div>
                             </div>
                             @endif
                         </div>
+                    </div>
 
-                        <div class="grid grid-cols-2 gap-4 mb-6">
-                            <button wire:click="$set('paymentMethod', 'cash')" class="p-4 rounded-xl font-bold border-2 transition {{ $paymentMethod === 'cash' ? 'border-orange-500 bg-orange-900/40 text-orange-400' : 'border-gray-700 hover:bg-gray-800' }}">💵 Efectivo</button>
-                            <button wire:click="$set('paymentMethod', 'card')" class="p-4 rounded-xl font-bold border-2 transition {{ $paymentMethod === 'card' ? 'border-orange-500 bg-orange-900/40 text-orange-400' : 'border-gray-700 hover:bg-gray-800' }}">💳 Tarjeta</button>
-                        </div>
-
-                        @if($paymentMethod === 'cash')
-                        <div class="mb-6">
-                            <label class="text-sm text-gray-400 mb-2 block">Efectivo recibido</label>
-                            <input wire:model.live="cashReceived" type="number" step="0.01" class="w-full bg-gray-800 border-gray-700 rounded-xl px-4 py-4 text-2xl font-bold text-center mb-4">
-                            
-                            <!-- QUICK CASH BUTTONS -->
-                            <div class="grid grid-cols-4 gap-2 mb-4">
-                                @foreach([5, 10, 20, 50] as $bill)
-                                    <button wire:click="$set('cashReceived', {{ $bill }})" class="bg-gray-700 py-2 rounded font-bold hover:bg-gray-600">€{{ $bill }}</button>
-                                @endforeach
-                            </div>
-
-                            <div class="flex justify-between bg-gray-950 p-4 rounded-xl border border-gray-800">
-                                <span class="text-gray-400">Cambio a devolver</span>
-                                <span class="font-bold text-xl {{ $this->change > 0 ? 'text-green-500' : 'text-gray-500' }}">€{{ number_format($this->change, 2) }}</span>
-                            </div>
-                        </div>
-                        @endif
-
-                        <button wire:click="processPayment" class="w-full py-4 bg-green-600 hover:bg-green-500 rounded-xl font-bold text-xl transition">
-                            Confirmar Cobro
+                    <div class="p-4 border-t border-gray-800 bg-gray-950 shrink-0 flex gap-3">
+                        <button wire:click="$set('showPaymentModal', false)" class="px-6 py-3 bg-gray-800 hover:bg-gray-700 text-white rounded-xl font-bold transition text-sm">
+                            Cerrar
+                        </button>
+                        <button wire:click="processPayment" class="flex-1 py-4 bg-green-600 hover:bg-green-500 rounded-xl font-black text-xl transition shadow-[0_0_20px_rgba(22,163,74,0.3)] active:scale-[0.98]">
+                            CONFIRMAR COBRO
                         </button>
                     </div>
                 </div>
             </div>
             @endif
-
-        </div>
-    @endif
 
     <!-- OPEN REGISTER MODAL -->
     @if($showOpenRegisterModal)
@@ -693,6 +758,59 @@
         <script>setTimeout(() => { document.querySelector('.animate-bounce').style.display = 'none'; }, 3000);</script>
     @endif
 
+    <!-- CUSTOMER SELECTION MODAL -->
+    @if($showCustomerModal)
+    <div class="fixed inset-0 bg-black/80 flex items-center justify-center z-[110] backdrop-blur-sm">
+        <div class="bg-gray-900 rounded-2xl w-full max-w-md overflow-hidden border border-gray-700 shadow-2xl flex flex-col max-h-[80vh]">
+            <div class="p-6 border-b border-gray-800 bg-gray-950 flex justify-between items-center shrink-0">
+                <h3 class="text-2xl font-bold">Asignar Cliente</h3>
+                <button wire:click="$set('showCustomerModal', false)" class="text-gray-400 hover:text-white w-10 h-10 flex items-center justify-center rounded-full bg-gray-800 hover:bg-gray-700 transition">✕</button>
+            </div>
+            
+            <div class="p-6 overflow-y-auto flex-1 space-y-4">
+                <div class="relative">
+                    <input wire:model.live="searchCustomerQuery" type="text" placeholder="Buscar por nombre o teléfono..." 
+                        class="w-full bg-gray-950 border-gray-700 rounded-xl px-4 py-4 text-white focus:border-orange-500 focus:ring-orange-500 text-lg">
+                </div>
+
+                <div class="space-y-2">
+                    @if($selectedCustomerId)
+                        <button wire:click="selectCustomer(null)" class="w-full p-4 rounded-xl border-2 border-red-900/30 bg-red-900/10 text-red-500 font-bold hover:bg-red-900/20 transition flex items-center justify-center gap-2">
+                            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path></svg>
+                            Desvincular Cliente
+                        </button>
+                    @endif
+
+                    @forelse($this->customers as $customer)
+                        <button wire:click="selectCustomer({{ $customer->id }})" 
+                            class="w-full p-4 rounded-xl border-2 transition text-left flex justify-between items-center
+                            {{ $selectedCustomerId === $customer->id ? 'border-orange-500 bg-orange-900/20' : 'border-gray-800 bg-gray-800/50 hover:border-gray-600' }}">
+                            <div>
+                                <div class="font-bold text-lg text-white">{{ $customer->name }}</div>
+                                <div class="text-sm text-gray-400">{{ $customer->phone ?? 'Sin teléfono' }}</div>
+                            </div>
+                            <div class="text-right">
+                                <div class="text-orange-500 font-bold">{{ $customer->loyalty_points }} pts</div>
+                                <div class="text-[10px] text-gray-500 uppercase font-bold tracking-widest">Saldo Activo</div>
+                            </div>
+                        </button>
+                    @empty
+                        <div class="text-center py-8 text-gray-500">
+                            No se encontraron clientes que coincidan.
+                        </div>
+                    @endforelse
+                </div>
+            </div>
+            
+            <div class="p-4 bg-gray-950 border-t border-gray-800 text-center">
+                <a href="{{ url('/admin/customers/create') }}" target="_blank" class="text-orange-500 font-bold hover:underline">
+                    + Registrar Nuevo Cliente
+                </a>
+            </div>
+        </div>
+    </div>
+    @endif
+
     <script>
         document.addEventListener('livewire:initialized', () => {
             Livewire.on('print-z-report', (event) => {
@@ -741,5 +859,6 @@
             resetInactivityTimer();
         });
     </script>
+    @endif
     @endif
 </div>

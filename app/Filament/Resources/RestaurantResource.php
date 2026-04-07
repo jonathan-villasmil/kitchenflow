@@ -67,6 +67,21 @@ class RestaurantResource extends Resource
                             ->default('EUR')
                             ->required(),
                     ])->columns(2),
+
+                Section::make('Fidelización (CRM)')
+                    ->schema([
+                        TextInput::make('loyalty_points_per_unit')
+                            ->label('Puntos por cada moneda (Ej: 1€ = 1 punto)')
+                            ->numeric()
+                            ->default(1.00)
+                            ->step(0.1)
+                            ->required(),
+                        TextInput::make('loyalty_redemption_rate')
+                            ->label('Puntos para descontar 1 unidad (Ej: 100 puntos = 1€)')
+                            ->numeric()
+                            ->default(100)
+                            ->required(),
+                    ])->columns(2),
             ]);
     }
 
