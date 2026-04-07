@@ -32,29 +32,6 @@ class Order extends Model
             $order->number = static::generateNumber($order->restaurant_id);
             $order->opened_at = now();
         });
-
-        static::updated(function (Order $order) {
-            // Si el pedido pasa a ser pagado, descontamos stock de los ingredientes
-            if ($order->isDirty('status') && $order->status === 'paid') {
-                foreach ($order->items as $item) {
-                    $dish = $item->dish;
-                    if (!$dish) continue;
-
-                    foreach ($dish->ingredients as $ingredient) {
-                        $quantityToDeduct = $ingredient->pivot->quantity * $item->quantity;
-
-                        StockMovement::create([
-                            'restaurant_id' => $order->restaurant_id,
-                            'inventory_item_id' => $ingredient->id,
-                            'user_id' => $order->user_id,
-                            'type' => 'sale',
-                            'quantity' => $quantityToDeduct,
-                            'notes' => "Venta Automática: Pedido #{$order->number}",
-                        ]);
-                    }
-                }
-            }
-        });
     }
 
     public static function generateNumber(int $restaurantId): string

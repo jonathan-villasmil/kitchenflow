@@ -164,5 +164,84 @@ class ComprehensiveSeeder extends Seeder
                 ]
             );
         }
+
+        // ─── 7. Histórico de Órdenes y Ventas (Para Analíticas) ─────────
+        $adminUser = User::where('email', 'juan@kitchenflow.com')->first();
+        if ($adminUser) {
+            $cashRegister = \App\Models\CashRegister::create([
+                'restaurant_id' => $restaurant->id,
+                'opened_by' => $adminUser->id,
+                'opening_amount' => 150.00,
+                'opened_at' => Carbon::now()->subDays(2),
+                'closed_at' => Carbon::now()->subDays(2)->addHours(8),
+                'status' => 'closed',
+                'closing_amount' => 300.00,
+                'expected_amount' => 300.00,
+                'notes' => 'Cierre automático inicial'
+            ]);
+
+            $dishes = Dish::where('restaurant_id', $restaurant->id)->get();
+            if ($dishes->count() > 0) {
+                for ($i = 1; $i <= 10; $i++) {
+                    $paymentMethod = $i % 2 === 0 ? 'card' : 'cash';
+                    $customer = ($i % 3 === 0) ? \App\Models\Customer::inRandomOrder()->first() : null;
+
+                    $orderDate = Carbon::now()->subDays(rand(0, 5))->subHours(rand(1, 10));
+
+                    $order = Order::create([
+                        'restaurant_id' => $restaurant->id,
+                        'table_id' => Table::where('restaurant_id', $restaurant->id)->inRandomOrder()->first()?->id,
+                        'user_id' => $adminUser->id,
+                        'customer_id' => $customer?->id,
+                        'type' => 'dine_in',
+                        'status' => 'paid',
+                        'opened_at' => $orderDate,
+                        'closed_at' => (clone $orderDate)->addMinutes(45),
+                        'subtotal' => 0,
+                        'total' => 0,
+                        'tax_amount' => 0,
+                    ]);
+
+                    $subtotal = 0;
+                    $itemsCount = rand(1, 4);
+                    for ($j = 0; $j < $itemsCount; $j++) {
+                        $dish = $dishes->random();
+                        $qty = rand(1, 2);
+                        $lineTotal = round((float) $dish->dynamic_price * $qty, 2);
+
+                        OrderItem::create([
+                            'order_id' => $order->id,
+                            'dish_id' => $dish->id,
+                            'name' => $dish->name,
+                            'unit_price' => (float) $dish->dynamic_price,
+                            'quantity' => $qty,
+                            'total' => $lineTotal,
+                            'status' => 'delivered',
+                            'course' => 1,
+                            'sent_at' => clone $order->opened_at,
+                        ]);
+                        $subtotal += $lineTotal;
+                    }
+
+                    $order->subtotal = $subtotal;
+                    $order->tax_amount = round($subtotal * (($restaurant->tax_rate ?? 10) / 100), 2);
+                    $order->total = $order->subtotal + $order->tax_amount;
+                    $order->save();
+
+                    \App\Models\CashRegisterTransaction::create([
+                        'cash_register_id' => $cashRegister->id,
+                        'user_id' => $adminUser->id,
+                        'type' => 'sale',
+                        'amount' => $order->total,
+                        'payment_method' => $paymentMethod,
+                        'reference_type' => Order::class,
+                        'reference_id' => $order->id,
+                        'notes' => 'Venta de prueba',
+                        'created_at' => clone $order->closed_at,
+                        'updated_at' => clone $order->closed_at,
+                    ]);
+                }
+            }
+        }
     }
 }

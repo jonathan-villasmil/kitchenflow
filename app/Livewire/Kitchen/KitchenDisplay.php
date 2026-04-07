@@ -33,7 +33,7 @@ class KitchenDisplay extends Component
 
             // Check if entire order is ready
             $order = $item->order;
-            if ($order->items()->where('status', '!=', 'ready')->count() === 0) {
+            if ($order->items()->whereNotIn('status', ['ready', 'cancelled'])->count() === 0) {
                 $order->update(['status' => 'ready']);
             }
 

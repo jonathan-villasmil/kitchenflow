@@ -787,13 +787,13 @@ class PosTerminal extends Component
             'total' => $this->grandTotal - $this->pointsDiscount,
         ]);
 
-        if ($this->paymentMethod === 'cash') {
+        if (in_array($this->paymentMethod, ['cash', 'card'])) {
             CashRegisterTransaction::create([
                 'cash_register_id' => $this->activeRegister->id,
                 'user_id'          => auth()->id(),
                 'type'             => 'sale',
                 'amount'           => $this->grandTotal - $this->pointsDiscount,
-                'payment_method'   => 'cash',
+                'payment_method'   => $this->paymentMethod,
                 'reference_type'   => Order::class,
                 'reference_id'     => $order->id,
                 'notes'            => 'Cobro Mesa ' . ($this->selectedTableId ? Table::find($this->selectedTableId)->number : 'Barra') . ($this->tipAmount > 0 ? " (Inc. propina €{$this->tipAmount})" : ''),
