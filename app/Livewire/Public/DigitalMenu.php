@@ -3,6 +3,7 @@
 namespace App\Livewire\Public;
 
 use App\Models\Dish;
+use App\Models\InventoryItem;
 use App\Models\MenuCategory;
 use App\Models\Order;
 use App\Models\OrderItem;
@@ -66,7 +67,52 @@ class DigitalMenu extends Component
             $query->where('menu_category_id', $this->selectedCategoryId);
         }
 
-        return $query->orderBy('sort_order')->with('modifierGroups.modifiers')->get();
+        return $query->orderBy('sort_order')->with(['modifierGroups.modifiers', 'ingredients'])->get();
+    }
+
+    /**
+     * Calcula el stock disponible por plato cruzando el escandallo con el inventario.
+     * Devuelve: [dish_id => ['status' => 'ok'|'low'|'out', 'portions' => int|null]]
+     */
+    public function getStockMapProperty(): array
+    {
+        $map = [];
+
+        foreach ($this->dishes as $dish) {
+            if ($dish->ingredients->isEmpty()) {
+                $map[$dish->id] = ['status' => 'ok', 'portions' => null];
+                continue;
+            }
+
+            $minPortions = PHP_INT_MAX;
+
+            foreach ($dish->ingredients as $ingredient) {
+                if (!$ingredient->track_stock) continue;
+
+                $required = (float) $ingredient->pivot->quantity;
+                if ($required <= 0) continue;
+
+                $available = (float) $ingredient->stock_current;
+                $portions  = (int) floor($available / $required);
+
+                if ($portions < $minPortions) {
+                    $minPortions = $portions;
+                }
+            }
+
+            if ($minPortions === PHP_INT_MAX) {
+                // Ningún ingrediente trackea stock
+                $map[$dish->id] = ['status' => 'ok', 'portions' => null];
+            } elseif ($minPortions <= 0) {
+                $map[$dish->id] = ['status' => 'out', 'portions' => 0];
+            } elseif ($minPortions <= 3) {
+                $map[$dish->id] = ['status' => 'low', 'portions' => $minPortions];
+            } else {
+                $map[$dish->id] = ['status' => 'ok', 'portions' => $minPortions];
+            }
+        }
+
+        return $map;
     }
     
     public function getActiveDishForModifiersProperty()
@@ -77,6 +123,10 @@ class DigitalMenu extends Component
 
     public function addToCart(int $dishId)
     {
+        // Verificar stock antes de aceptar el pedido
+        $stockInfo = $this->stockMap[$dishId] ?? ['status' => 'ok'];
+        if ($stockInfo['status'] === 'out') return;
+
         $dish = Dish::with('modifierGroups.modifiers')->find($dishId);
         if (!$dish || !$dish->is_available) return;
 

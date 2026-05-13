@@ -55,9 +55,25 @@
         <!-- LISTA DE PLATOS -->
         <div class="grid gap-4">
             @forelse($this->dishes as $dish)
-                <div class="bg-white dark:bg-gray-900 rounded-3xl p-4 flex gap-4 shadow-sm border border-gray-100 dark:border-gray-800 overflow-hidden relative group">
-                    <!-- Image placeholder -->
-                    <div class="w-24 h-24 shrink-0 rounded-2xl bg-gray-100 dark:bg-gray-800 flex items-center justify-center text-4xl overflow-hidden {{ $dish->image ? '' : 'opacity-80' }}">
+                @php
+                    $stockInfo = $this->stockMap[$dish->id] ?? ['status' => 'ok', 'portions' => null];
+                    $isOut = $stockInfo['status'] === 'out';
+                    $isLow = $stockInfo['status'] === 'low';
+                @endphp
+                <div class="bg-white dark:bg-gray-900 rounded-3xl p-4 flex gap-4 shadow-sm border border-gray-100 dark:border-gray-800 overflow-hidden relative group {{ $isOut ? 'opacity-60' : '' }}">
+                    {{-- Badge de stock (esquina superior derecha) --}}
+                    @if($isOut)
+                        <div class="absolute top-3 right-3 z-10 px-2.5 py-1 bg-red-500 text-white text-[10px] font-black rounded-full shadow-md tracking-wide uppercase">
+                            🚫 Agotado
+                        </div>
+                    @elseif($isLow)
+                        <div class="absolute top-3 right-3 z-10 px-2.5 py-1 bg-amber-400 text-gray-900 text-[10px] font-black rounded-full shadow-md tracking-wide uppercase animate-pulse">
+                            ⚠️ Últimas {{ $stockInfo['portions'] }}
+                        </div>
+                    @endif
+
+                    <!-- Image -->
+                    <div class="w-24 h-24 shrink-0 rounded-2xl bg-gray-100 dark:bg-gray-800 flex items-center justify-center text-4xl overflow-hidden {{ ($dish->image ? '' : 'opacity-80') . ($isOut ? ' grayscale' : '') }}">
                         @if($dish->image)
                             <img src="{{ Storage::url($dish->image) }}" class="w-full h-full object-cover">
                         @else
@@ -76,9 +92,16 @@
                                 <span class="text-sm text-orange-500">€</span>{{ number_format($dish->dynamic_price, 2) }}
                             </span>
                             
-                            <button wire:click="addToCart({{ $dish->id }})" class="w-10 h-10 rounded-full bg-orange-50 hover:bg-orange-100 text-orange-600 dark:bg-orange-500/10 dark:text-orange-400 dark:hover:bg-orange-500/20 font-black text-xl flex items-center justify-center transition active:scale-95">
-                                +
-                            </button>
+                            @if($isOut)
+                                <div class="w-10 h-10 rounded-full bg-gray-100 dark:bg-gray-800 text-gray-400 flex items-center justify-center cursor-not-allowed" title="Sin stock">
+                                    <span class="text-lg">✕</span>
+                                </div>
+                            @else
+                                <button wire:click="addToCart({{ $dish->id }})" 
+                                    class="w-10 h-10 rounded-full bg-orange-50 hover:bg-orange-100 text-orange-600 dark:bg-orange-500/10 dark:text-orange-400 dark:hover:bg-orange-500/20 font-black text-xl flex items-center justify-center transition active:scale-95">
+                                    +
+                                </button>
+                            @endif
                         </div>
                     </div>
                 </div>

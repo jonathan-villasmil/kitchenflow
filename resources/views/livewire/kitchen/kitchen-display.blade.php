@@ -124,9 +124,19 @@
             
             @forelse($this->activeOrders as $order)
                 @php
-                    $minutesWaiting = $order->created_at->diffInMinutes(now());
-                    $urgent = $minutesWaiting > 15;
-                    $warning = $minutesWaiting > 10;
+                    // Usar el sent_at más antiguo de los items visibles en esta estación
+                    $oldestSentAt  = $order->items->filter(fn($i) => $i->sent_at !== null)->min('sent_at');
+                    $referenceTime = $oldestSentAt ?? $order->created_at;
+
+                    $totalSeconds   = $referenceTime->diffInSeconds(now());
+                    $minutesWaiting = (int) floor($totalSeconds / 60);
+                    $secondsDisplay = str_pad($totalSeconds % 60, 2, '0', STR_PAD_LEFT);
+                    $timeLabel      = $minutesWaiting > 0
+                        ? "{$minutesWaiting}:{$secondsDisplay}"
+                        : "0:{$secondsDisplay}";
+
+                    $urgent  = $minutesWaiting >= 15;
+                    $warning = $minutesWaiting >= 10;
                 @endphp
 
                 <div data-order-ticket
@@ -144,7 +154,13 @@
                         </div>
                         <div class="flex justify-between text-sm text-gray-400">
                             <span>{{ $order->user->name ?? 'Sistema' }}</span>
-                            <span class="{{ $urgent ? 'text-red-400 font-bold' : '' }}">{{ $minutesWaiting }} min</span>
+                            <span class="font-mono font-bold {{ $urgent ? 'text-red-400' : ($warning ? 'text-orange-400' : 'text-gray-400') }}">
+                                @if($totalSeconds < 60)
+                                    🟢 Recién
+                                @else
+                                    ⏱ {{ $timeLabel }}
+                                @endif
+                            </span>
                         </div>
                     </div>
 
