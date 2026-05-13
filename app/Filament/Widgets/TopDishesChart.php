@@ -3,28 +3,39 @@
 namespace App\Filament\Widgets;
 
 use App\Models\OrderItem;
+use Carbon\Carbon;
 use Filament\Widgets\ChartWidget;
-use Filament\Widgets\Concerns\InteractsWithPageFilters;
 use Illuminate\Support\Facades\DB;
-use Illuminate\Support\Carbon;
+use Livewire\Attributes\On;
 
 class TopDishesChart extends ChartWidget
 {
-    use InteractsWithPageFilters;
-
     protected ?string $heading = 'Platos Más Vendidos';
     protected static ?int $sort = 1;
 
+    public string $startDate = '';
+    public string $endDate   = '';
+
+    public function mount(): void
+    {
+        $this->startDate = today()->toDateString();
+        $this->endDate   = today()->toDateString();
+    }
+
+    #[On('analytics-filters-updated')]
+    public function applyFilters(string $startDate, string $endDate): void
+    {
+        $this->startDate = $startDate;
+        $this->endDate   = $endDate;
+    }
+
     protected function getData(): array
     {
-        $startDate = $this->filters['startDate'] ?? today()->startOfDay();
-        $endDate = $this->filters['endDate'] ?? today()->endOfDay();
+        $start = Carbon::parse($this->startDate ?: today())->startOfDay();
+        $end   = Carbon::parse($this->endDate   ?: today())->endOfDay();
 
         $topDishes = OrderItem::select('name', DB::raw('SUM(quantity) as total_sold'), DB::raw('SUM(total) as total_revenue'))
-            ->whereBetween('created_at', [
-                Carbon::parse($startDate)->startOfDay(),
-                Carbon::parse($endDate)->endOfDay()
-            ])
+            ->whereBetween('created_at', [$start, $end])
             ->where('status', '!=', 'cancelled')
             ->groupBy('name')
             ->orderByDesc('total_sold')

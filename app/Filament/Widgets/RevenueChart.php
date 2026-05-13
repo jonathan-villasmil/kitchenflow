@@ -2,36 +2,92 @@
 
 namespace App\Filament\Widgets;
 
+use App\Models\Order;
+use Carbon\Carbon;
 use Filament\Widgets\ChartWidget;
+use Livewire\Attributes\On;
 
 class RevenueChart extends ChartWidget
 {
-    protected ?string $heading = 'Ingresos (Últimos 7 Días)';
     protected static ?int $sort = 2;
+
+    public string $startDate = '';
+    public string $endDate   = '';
+
+    public function mount(): void
+    {
+        $this->startDate = today()->toDateString();
+        $this->endDate   = today()->toDateString();
+    }
+
+    #[On('analytics-filters-updated')]
+    public function applyFilters(string $startDate, string $endDate): void
+    {
+        $this->startDate = $startDate;
+        $this->endDate   = $endDate;
+    }
+
+    public function getHeading(): ?string
+    {
+        $start = $this->startDate ?: today()->toDateString();
+        $end   = $this->endDate   ?: today()->toDateString();
+        return $start === $end
+            ? 'Ingresos del ' . Carbon::parse($start)->format('d/m/Y')
+            : 'Ingresos: ' . Carbon::parse($start)->format('d/m') . ' — ' . Carbon::parse($end)->format('d/m/Y');
+    }
 
     protected function getData(): array
     {
-        $data = collect();
+        $start = Carbon::parse($this->startDate ?: today())->startOfDay();
+        $end   = Carbon::parse($this->endDate   ?: today())->endOfDay();
+
+        // Generar todos los días del rango
+        $days   = collect();
         $labels = collect();
+        $data   = collect();
 
-        for ($i = 6; $i >= 0; $i--) {
-            $date = now()->subDays($i);
-            $total = \App\Models\Order::whereDate('created_at', $date)
-                ->where('status', 'paid')
-                ->sum('total');
+        $diff = (int) $start->diffInDays($end);
+        // Si el rango es muy grande, agrupar por semana o mes
+        $groupBy = $diff > 60 ? 'month' : ($diff > 14 ? 'week' : 'day');
 
-            $data->push($total);
-            $labels->push($date->format('d M'));
+        if ($groupBy === 'day') {
+            for ($i = 0; $i <= $diff; $i++) {
+                $date  = $start->copy()->addDays($i);
+                $total = Order::whereDate('closed_at', $date)->where('status', 'paid')->sum('total');
+                $data->push(round($total, 2));
+                $labels->push($date->format('d M'));
+            }
+        } elseif ($groupBy === 'week') {
+            $cursor = $start->copy()->startOfWeek();
+            while ($cursor->lte($end)) {
+                $weekEnd = $cursor->copy()->endOfWeek();
+                $total = Order::whereBetween('closed_at', [$cursor, $weekEnd->min($end)])
+                    ->where('status', 'paid')->sum('total');
+                $data->push(round($total, 2));
+                $labels->push('Sem ' . $cursor->format('d/m'));
+                $cursor->addWeek();
+            }
+        } else {
+            $cursor = $start->copy()->startOfMonth();
+            while ($cursor->lte($end)) {
+                $monthEnd = $cursor->copy()->endOfMonth();
+                $total = Order::whereBetween('closed_at', [$cursor, $monthEnd->min($end)])
+                    ->where('status', 'paid')->sum('total');
+                $data->push(round($total, 2));
+                $labels->push($cursor->format('M Y'));
+                $cursor->addMonth();
+            }
         }
 
         return [
             'datasets' => [
                 [
-                    'label' => 'Ingresos Diarios',
-                    'data' => $data->toArray(),
-                    'fill' => 'start',
-                    'borderColor' => '#f59e0b',
-                    'backgroundColor' => 'rgba(245, 158, 11, 0.2)',
+                    'label'           => 'Ingresos (€)',
+                    'data'            => $data->toArray(),
+                    'fill'            => 'start',
+                    'borderColor'     => '#f59e0b',
+                    'backgroundColor' => 'rgba(245, 158, 11, 0.15)',
+                    'tension'         => 0.3,
                 ],
             ],
             'labels' => $labels->toArray(),

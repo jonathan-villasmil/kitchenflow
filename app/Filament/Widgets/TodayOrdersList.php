@@ -2,56 +2,94 @@
 
 namespace App\Filament\Widgets;
 
-use Filament\Actions\BulkActionGroup;
+use Carbon\Carbon;
 use Filament\Tables\Table;
 use Filament\Widgets\TableWidget;
 use Illuminate\Database\Eloquent\Builder;
-use Illuminate\Database\Eloquent\Model;
+use Livewire\Attributes\On;
 
 class TodayOrdersList extends TableWidget
 {
     protected int | string | array $columnSpan = 'full';
-    protected static ?string $heading = 'Ventas de Hoy';
     protected static ?int $sort = 4;
+    protected static ?string $heading = 'Pedidos del periodo';
+
+    public string $startDate = '';
+    public string $endDate   = '';
+
+    public function mount(): void
+    {
+        $this->startDate = today()->toDateString();
+        $this->endDate   = today()->toDateString();
+    }
+
+    #[On('analytics-filters-updated')]
+    public function applyFilters(string $startDate, string $endDate): void
+    {
+        $this->startDate = $startDate;
+        $this->endDate   = $endDate;
+    }
 
     public function table(Table $table): Table
     {
+        $start = Carbon::parse($this->startDate ?: today())->startOfDay();
+        $end   = Carbon::parse($this->endDate   ?: today())->endOfDay();
+
         return $table
-            ->query(fn (): Builder => \App\Models\Order::query()->whereDate('created_at', today())->latest())
+            ->query(fn (): Builder => \App\Models\Order::query()
+                ->whereBetween('created_at', [$start, $end])
+                ->latest()
+            )
             ->columns([
-                \Filament\Tables\Columns\TextColumn::make('number')
+                \Filament\Tables\Columns\TextColumn::make('id')
                     ->label('Nº Pedido')
-                    ->searchable()
+                    ->formatStateUsing(fn ($state) => '#' . str_pad($state, 5, '0', STR_PAD_LEFT))
                     ->weight('bold'),
-                
+
                 \Filament\Tables\Columns\TextColumn::make('customer.name')
                     ->label('Cliente')
                     ->searchable()
-                    ->default('Cliente Anónimo'),
-                    
+                    ->default('—'),
+
+                \Filament\Tables\Columns\TextColumn::make('type')
+                    ->label('Tipo')
+                    ->badge()
+                    ->formatStateUsing(fn ($state) => match($state) {
+                        'dine_in'  => 'Mesa',
+                        'takeaway' => 'Llevar',
+                        'delivery' => 'Delivery',
+                        default    => $state,
+                    })
+                    ->color(fn ($state) => match($state) {
+                        'dine_in'  => 'info',
+                        'takeaway' => 'warning',
+                        'delivery' => 'success',
+                        default    => 'gray',
+                    }),
+
                 \Filament\Tables\Columns\TextColumn::make('status')
                     ->label('Estado')
                     ->badge()
                     ->color(fn (string $state): string => match ($state) {
-                        'pending' => 'gray',
-                        'kitchen' => 'warning',
-                        'ready' => 'info',
-                        'served' => 'success',
-                        'paid' => 'success',
+                        'pending'   => 'gray',
+                        'confirmed' => 'info',
+                        'ready'     => 'warning',
+                        'paid'      => 'success',
                         'cancelled' => 'danger',
-                        default => 'gray',
+                        default     => 'gray',
                     }),
-                    
+
                 \Filament\Tables\Columns\TextColumn::make('total')
                     ->label('Total')
                     ->money('EUR')
                     ->sortable()
                     ->weight('bold'),
-                    
+
                 \Filament\Tables\Columns\TextColumn::make('created_at')
                     ->label('Hora')
-                    ->dateTime('H:i')
+                    ->dateTime('d/m H:i')
                     ->sortable(),
-            ]);
+            ])
+            ->defaultSort('created_at', 'desc');
     }
 }
