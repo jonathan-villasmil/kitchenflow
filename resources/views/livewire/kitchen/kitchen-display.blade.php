@@ -1,41 +1,72 @@
 <div x-data="{
-    checkUrgent() {
-        if (!@js($soundEnabled)) return;
-        const hasUrgent = document.querySelectorAll('.animate-pulse').length > 0;
-        if (hasUrgent) {
+    orderCount: {{ $this->activeOrders->count() }},
+    lastRefresh: new Date(),
+    soundEnabled: @js($soundEnabled),
+
+    init() {
+        // Escuchar el evento de Livewire cuando el componente se actualiza
+        Livewire.hook('commit', ({ component, commit, respond, succeed, fail }) => {
+            succeed(({ snapshot, effect }) => {
+                this.$nextTick(() => this.onRefresh());
+            });
+        });
+    },
+
+    onRefresh() {
+        const newCount = document.querySelectorAll('[data-order-ticket]').length;
+        this.lastRefresh = new Date();
+
+        // Si hay más pedidos que antes, reproducir sonido de alerta
+        if (this.soundEnabled && newCount > this.orderCount) {
+            this.playNewOrder();
+        }
+        this.orderCount = newCount;
+
+        // Si hay urgentes, reproducir alarma
+        if (this.soundEnabled && document.querySelectorAll('.urgent-ticket').length > 0) {
             this.playAlarm();
         }
     },
-    playAlarm() {
+
+    formattedTime(date) {
+        return date.toLocaleTimeString('es-ES', { hour: '2-digit', minute: '2-digit', second: '2-digit' });
+    },
+
+    playNewOrder() {
         try {
             const ctx = new (window.AudioContext || window.webkitAudioContext)();
             const osc = ctx.createOscillator();
             const gain = ctx.createGain();
-            osc.type = 'sawtooth';
-            osc.frequency.setValueAtTime(800, ctx.currentTime);
-            osc.frequency.setValueAtTime(1200, ctx.currentTime + 0.1); 
-            gain.gain.setValueAtTime(0.5, ctx.currentTime);
-            gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.3);
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(880, ctx.currentTime);
+            gain.gain.setValueAtTime(0.4, ctx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.5);
             osc.connect(gain);
             gain.connect(ctx.destination);
             osc.start();
-            osc.stop(ctx.currentTime + 0.3);
-            
-            // double beep
-            const osc2 = ctx.createOscillator();
-            const gain2 = ctx.createGain();
-            osc2.type = 'sawtooth';
-            osc2.frequency.setValueAtTime(800, ctx.currentTime + 0.4);
-            osc2.frequency.setValueAtTime(1200, ctx.currentTime + 0.5); 
-            gain2.gain.setValueAtTime(0.5, ctx.currentTime + 0.4);
-            gain2.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.7);
-            osc2.connect(gain2);
-            gain2.connect(ctx.destination);
-            osc2.start(ctx.currentTime + 0.4);
-            osc2.stop(ctx.currentTime + 0.7);
+            osc.stop(ctx.currentTime + 0.5);
+        } catch(e) {}
+    },
+
+    playAlarm() {
+        try {
+            const ctx = new (window.AudioContext || window.webkitAudioContext)();
+            [0, 0.4].forEach(offset => {
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                osc.type = 'sawtooth';
+                osc.frequency.setValueAtTime(800, ctx.currentTime + offset);
+                osc.frequency.setValueAtTime(1200, ctx.currentTime + offset + 0.1);
+                gain.gain.setValueAtTime(0.5, ctx.currentTime + offset);
+                gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + offset + 0.3);
+                osc.connect(gain);
+                gain.connect(ctx.destination);
+                osc.start(ctx.currentTime + offset);
+                osc.stop(ctx.currentTime + offset + 0.3);
+            });
         } catch(e) {}
     }
-}" x-init="setInterval(() => checkUrgent(), 5000)">
+}">
     <!-- HEADER -->
     <div class="h-16 bg-gray-900 border-b border-gray-800 flex justify-between items-center px-6">
         <h1 class="text-2xl font-bold flex items-center gap-3">
@@ -43,9 +74,26 @@
             <span class="bg-gray-800 text-orange-400 px-3 py-1 rounded text-sm tracking-widest uppercase">
                 {{ match($station) { 'hot' => '🔥 Caliente', 'cold' => '❄️ Fría', 'bar' => '🍹 Barra', 'bakery' => '🥐 Panadería', default => $station } }}
             </span>
+            {{-- Contador de pedidos activos --}}
+            @if($this->activeOrders->count() > 0)
+                <span class="bg-orange-500 text-white text-sm font-black px-3 py-1 rounded-full animate-pulse">
+                    {{ $this->activeOrders->count() }} {{ $this->activeOrders->count() === 1 ? 'pedido' : 'pedidos' }}
+                </span>
+            @else
+                <span class="bg-green-700/50 text-green-400 text-sm font-bold px-3 py-1 rounded-full">
+                    ✅ Al día
+                </span>
+            @endif
         </h1>
 
-        <div class="flex gap-4">
+        <div class="flex items-center gap-4">
+            {{-- Indicador de último refresh --}}
+            <div class="flex items-center gap-2 text-xs text-gray-500 bg-gray-800 px-3 py-1.5 rounded-lg">
+                <span class="w-2 h-2 bg-green-500 rounded-full animate-pulse inline-block"></span>
+                <span>Auto-actualización cada 5s</span>
+                <span class="font-mono text-gray-400" x-text="formattedTime(lastRefresh)"></span>
+            </div>
+
             <select wire:model.live="station" wire:key="station-select" class="bg-gray-800 border-gray-700 rounded-lg text-white">
                 <option value="hot">🔥 Cocina Caliente</option>
                 <option value="cold">❄️ Cocina Fría</option>
@@ -53,13 +101,15 @@
                 <option value="bakery">🥐 Panadería</option>
             </select>
 
-            <button wire:click="$toggle('soundEnabled')" class="p-2 rounded-lg {{ $soundEnabled ? 'bg-green-600' : 'bg-red-600' }}">
+            <button wire:click="$toggle('soundEnabled')" 
+                @click="soundEnabled = !soundEnabled"
+                class="p-2 rounded-lg transition {{ $soundEnabled ? 'bg-green-600 hover:bg-green-500' : 'bg-red-800 hover:bg-red-700' }}"
+                :title="soundEnabled ? 'Sonido activo — click para silenciar' : 'Sonido silenciado — click para activar'">
                 <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15.536 8.464a5 5 0 010 7.072m2.828-9.9a9 9 0 010 12.728M5.586 15H4a1 1 0 01-1-1v-4a1 1 0 011-1h1.586l4.707-4.707C10.923 3.663 12 4.109 12 5v14c0 .891-1.077 1.337-1.707.707L5.586 15z"></path></svg>
             </button>
             @if(auth()->user() && !auth()->user()->hasRole('cocinero'))
                 <a href="{{ url('/admin') }}" data-navigate-ignore="true" class="px-4 py-2 bg-gray-800 hover:bg-gray-700 rounded-lg text-gray-300">Volver Admin</a>
             @else
-                <!-- Direct logout for cocineros -->
                 <form method="POST" action="{{ route('filament.admin.auth.logout') }}" class="inline">
                     @csrf
                     <button type="submit" class="px-4 py-2 bg-red-600 rounded-lg text-white hover:bg-red-500 transition">Salir</button>
@@ -79,9 +129,10 @@
                     $warning = $minutesWaiting > 10;
                 @endphp
 
-                <div wire:key="order-{{ $order->id }}-{{ $order->updated_at->timestamp ?? 0 }}"
+                <div data-order-ticket
+                     wire:key="order-{{ $order->id }}-{{ $order->updated_at->timestamp ?? 0 }}"
                      class="w-80 bg-gray-900 border-2 rounded-xl flex flex-col overflow-hidden shadow-2xl transition-all
-                            {{ $urgent ? 'border-red-500 animate-pulse' : ($warning ? 'border-orange-500' : 'border-gray-700') }}">
+                            {{ $urgent ? 'border-red-500 urgent-ticket' : ($warning ? 'border-orange-500' : 'border-gray-700') }}">
                     
                     <!-- Ticket Header -->
                     <div class="p-4 {{ $urgent ? 'bg-red-900/50' : ($warning ? 'bg-orange-900/50' : 'bg-gray-800') }}">

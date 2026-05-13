@@ -773,67 +773,93 @@ class PosTerminal extends Component
     // ── Process payment ───────────────────────────────────────────────
     public function processPayment(): void
     {
-        if (!$this->currentOrderId || !$this->activeRegister) return;
+        // Necesitamos caja abierta y al menos algo en el carrito
+        if (empty($this->cart) || !$this->activeRegister) return;
 
         $this->tipAmount = max(0, (float) $this->tipAmount);
 
+        // ── Si hay items sin enviar a cocina, los enviamos ahora (cobro directo) ──
+        $hasPending = collect($this->cart)->contains(fn($i) => !$i['order_item_id']);
+        if ($hasPending) {
+            $this->sendToKitchen();
+        }
+
+        // Tras sendToKitchen, currentOrderId ya existe
+        if (!$this->currentOrderId) return;
+
+        // ── Capturar netPaid ANTES de cualquier reset ─────────────────
+        $netPaid      = $this->total - $this->pointsDiscount;
+        $grandTotal   = $this->grandTotal;
+        $tipAmount    = $this->tipAmount;
+        $pointsDiscount = $this->pointsDiscount;
+        $pointsToRedeem = $this->pointsToRedeem;
+        $paymentMethod  = $this->paymentMethod;
+        $selectedCustomerId = $this->selectedCustomerId;
+        $selectedTableId    = $this->selectedTableId;
+
         $order = Order::find($this->currentOrderId);
+        if (!$order) return;
+
         $order->update([
-            'status' => 'paid', 
-            'closed_at' => now(),
-            'tip_amount' => $this->tipAmount,
-            'customer_id' => $this->selectedCustomerId,
-            'discount_amount' => $this->pointsDiscount,
-            'total' => $this->grandTotal - $this->pointsDiscount,
+            'status'          => 'paid',
+            'closed_at'       => now(),
+            'tip_amount'      => $tipAmount,
+            'customer_id'     => $selectedCustomerId,
+            'discount_amount' => $pointsDiscount,
+            'total'           => $grandTotal - $pointsDiscount,
         ]);
 
-        if (in_array($this->paymentMethod, ['cash', 'card'])) {
+        if (in_array($paymentMethod, ['cash', 'card'])) {
             CashRegisterTransaction::create([
                 'cash_register_id' => $this->activeRegister->id,
                 'user_id'          => auth()->id(),
                 'type'             => 'sale',
-                'amount'           => $this->grandTotal - $this->pointsDiscount,
-                'payment_method'   => $this->paymentMethod,
+                'amount'           => $grandTotal - $pointsDiscount,
+                'payment_method'   => $paymentMethod,
                 'reference_type'   => Order::class,
                 'reference_id'     => $order->id,
-                'notes'            => 'Cobro Mesa ' . ($this->selectedTableId ? Table::find($this->selectedTableId)->number : 'Barra') . ($this->tipAmount > 0 ? " (Inc. propina €{$this->tipAmount})" : ''),
+                'notes'            => 'Cobro Mesa ' . ($selectedTableId ? Table::find($selectedTableId)?->number ?? 'Barra' : 'Barra') . ($tipAmount > 0 ? " (Inc. propina €{$tipAmount})" : ''),
             ]);
         }
 
         // ─── CRM: Add Loyalty Points ─────────────────────────────────
-        if ($this->selectedCustomerId) {
-            $customer = \App\Models\Customer::find($this->selectedCustomerId);
+        if ($selectedCustomerId) {
+            $customer   = \App\Models\Customer::find($selectedCustomerId);
             $restaurant = auth()->user()->restaurant;
-            
-            // Deduct points if used
-            if ($this->pointsToRedeem > 0) {
-                $customer->decrement('loyalty_points', $this->pointsToRedeem);
-            }
-            
-            // Add points for the current sale (on the net amount paid)
-            $netPaid = $this->total - $this->pointsDiscount;
-            $newPoints = (int) ($netPaid * ($restaurant->loyalty_points_per_unit ?? 1.0));
-            
-            if ($newPoints > 0) {
-                $customer->increment('loyalty_points', $newPoints);
-                
-                Notification::make()
-                    ->title('Puntos acumulados')
-                    ->body("{$customer->name} ha acumulado {$newPoints} puntos.")
-                    ->success()
-                    ->send();
+
+            if ($customer) {
+                // Deducir puntos usados
+                if ($pointsToRedeem > 0) {
+                    $customer->decrement('loyalty_points', $pointsToRedeem);
+                }
+
+                // Acumular puntos por la venta
+                $newPoints = (int) ($netPaid * ($restaurant?->loyalty_points_per_unit ?? 1.0));
+
+                if ($newPoints > 0) {
+                    $customer->increment('loyalty_points', $newPoints);
+
+                    Notification::make()
+                        ->title('Puntos acumulados')
+                        ->body("{$customer->name} ha ganado {$newPoints} puntos. Total: " . ($customer->loyalty_points) . " pts.")
+                        ->success()
+                        ->send();
+                }
             }
         }
 
-        if ($this->selectedTableId) {
-            Table::where('id', $this->selectedTableId)->update(['status' => 'available']);
+        // Liberar mesa
+        if ($selectedTableId) {
+            Table::where('id', $selectedTableId)->update(['status' => 'available']);
         }
 
-        // Trigger Auto-Stock deduction
+        // Descontar inventario automáticamente
         OrderPaid::dispatch($order);
 
+        // Imprimir ticket
         $this->dispatch('print-receipt', url: route('pos.receipt', $order->id));
 
+        // Reset de estado del POS
         $this->reset(['cart', 'currentOrderId', 'selectedTableId', 'showPaymentModal', 'splitWays', 'tipAmount', 'tipPercentage', 'cashReceived', 'selectedCustomerId', 'pointsToRedeem', 'pointsDiscount']);
         $this->view = 'tables';
         session()->flash('success', '✅ Pago procesado correctamente');

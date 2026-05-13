@@ -2,9 +2,10 @@
 
 namespace App\Providers;
 
+use App\Events\OrderPaid;
+use App\Listeners\DeductInventoryOnOrderPayment;
+use Illuminate\Support\Facades\Event;
 use Illuminate\Support\ServiceProvider;
-use Livewire\Livewire;
-use Illuminate\Support\Facades\Route;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -21,6 +22,7 @@ class AppServiceProvider extends ServiceProvider
      */
     public function boot(): void
     {
-        //
+        // Registrar listeners de eventos
+        Event::listen(OrderPaid::class, DeductInventoryOnOrderPayment::class);
     }
 }
