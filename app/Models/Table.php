@@ -56,4 +56,15 @@ class Table extends Model
     {
         return $this->status === 'available';
     }
+
+    public function getMenuUrl(): string
+    {
+        $hash = substr(md5('kitchenflow_' . $this->id . config('app.key')), 0, 10);
+        return route('public.menu', ['table' => $this->id, 'hash' => $hash]);
+    }
+
+    public function verifyMenuHash(?string $hash): bool
+    {
+        return $hash === substr(md5('kitchenflow_' . $this->id . config('app.key')), 0, 10);
+    }
 }

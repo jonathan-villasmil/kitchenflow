@@ -14,9 +14,14 @@ Route::get('/', function () {
     return view('landing');
 });
 
+use App\Livewire\Public\DigitalMenu;
+
 Route::get('/login', function () {
     return redirect('/admin/login');
 })->name('login');
+
+// Public Route for Digital Menu & Self-Ordering
+Route::get('/menu/{table}', DigitalMenu::class)->name('public.menu');
 
 Route::middleware(['auth', 'verified'])->group(function () {
     Route::get('/pos', PosTerminal::class)->name('pos');
