@@ -93,9 +93,7 @@ class Dish extends Model
         $basePrice = (float) $this->price;
         $lowestPrice = $basePrice;
 
-        $happyHours = HappyHour::where('restaurant_id', $this->restaurant_id)
-            ->where('is_active', true)
-            ->get();
+        $happyHours = HappyHour::getActiveForRestaurant($this->restaurant_id);
 
         foreach ($happyHours as $hh) {
             if (!$hh->isActiveNow()) continue;

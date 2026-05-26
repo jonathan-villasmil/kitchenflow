@@ -47,10 +47,16 @@ class KitchenDisplay extends Component
         $restaurantId = $user->restaurant_id ?? 1;
 
         // Get orders that have items for this station that are NOT ready/delivered
-        return Order::with(['items' => function ($query) {
-                $query->whereIn('status', ['sent', 'preparing'])
-                      ->whereHas('dish', fn ($q) => $q->where('kitchen_station', $this->station));
-            }])
+        // Eager load relationships to prevent N+1 queries in KDS rendering
+        return Order::with([
+                'table',
+                'user',
+                'items' => function ($query) {
+                    $query->whereIn('status', ['sent', 'preparing'])
+                          ->whereHas('dish', fn ($q) => $q->where('kitchen_station', $this->station))
+                          ->with(['modifiers', 'dish']);
+                }
+            ])
             ->where('restaurant_id', $restaurantId)
             ->whereHas('items', function ($query) {
                 $query->whereIn('status', ['sent', 'preparing'])

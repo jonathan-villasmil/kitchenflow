@@ -24,6 +24,18 @@ class HappyHour extends Model
         'is_active' => 'boolean',
     ];
 
+    protected static array $activeCache = [];
+
+    public static function getActiveForRestaurant(int $restaurantId)
+    {
+        if (!isset(self::$activeCache[$restaurantId])) {
+            self::$activeCache[$restaurantId] = self::where('restaurant_id', $restaurantId)
+                ->where('is_active', true)
+                ->get();
+        }
+        return self::$activeCache[$restaurantId];
+    }
+
     public function restaurant()
     {
         return $this->belongsTo(Restaurant::class);

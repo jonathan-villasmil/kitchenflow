@@ -902,41 +902,11 @@ class PosTerminal extends Component
         $map = [];
 
         foreach ($this->dishes as $dish) {
-            $ingredients = $dish->ingredients;
-
-            // No escandallo defined → no stock tracking for this dish
-            if ($ingredients->isEmpty()) {
-                $map[$dish->id] = ['portions' => null, 'status' => 'ok'];
-                continue;
-            }
-
-            $maxPortions = PHP_INT_MAX;
-
-            foreach ($ingredients as $inventoryItem) {
-                if (!$inventoryItem->track_stock) continue;
-
-                $required = (float) $inventoryItem->pivot->quantity;
-                if ($required <= 0) continue;
-
-                $available = (float) $inventoryItem->stock_current;
-                $portionsFromThis = (int) floor($available / $required);
-                $maxPortions = min($maxPortions, $portionsFromThis);
-            }
-
-            // Classify status
-            if ($maxPortions === PHP_INT_MAX) {
-                // No tracked ingredients found
-                $status = 'ok';
-                $maxPortions = null;
-            } elseif ($maxPortions <= 0) {
-                $status = 'out';
-            } elseif ($maxPortions <= 3) {
-                $status = 'low';
-            } else {
-                $status = 'ok';
-            }
-
-            $map[$dish->id] = ['portions' => $maxPortions, 'status' => $status];
+            $stock = $dish->calculateStock();
+            $map[$dish->id] = [
+                'portions' => $stock['portions'],
+                'status' => $stock['status'],
+            ];
         }
 
         return $map;
