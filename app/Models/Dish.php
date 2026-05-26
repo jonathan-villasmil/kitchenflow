@@ -49,6 +49,39 @@ class Dish extends Model
                     ->withTimestamps();
     }
 
+    public function calculateStock(): array
+    {
+        if ($this->ingredients->isEmpty()) {
+            return ['status' => 'ok', 'portions' => null];
+        }
+
+        $minPortions = PHP_INT_MAX;
+
+        foreach ($this->ingredients as $ingredient) {
+            if (!$ingredient->track_stock) continue;
+
+            $required = (float) $ingredient->pivot->quantity;
+            if ($required <= 0) continue;
+
+            $available = (float) $ingredient->stock_current;
+            $portions  = (int) floor($available / $required);
+
+            if ($portions < $minPortions) {
+                $minPortions = $portions;
+            }
+        }
+
+        if ($minPortions === PHP_INT_MAX) {
+            return ['status' => 'ok', 'portions' => null];
+        } elseif ($minPortions <= 0) {
+            return ['status' => 'out', 'portions' => 0];
+        } elseif ($minPortions <= 3) {
+            return ['status' => 'low', 'portions' => $minPortions];
+        } else {
+            return ['status' => 'ok', 'portions' => $minPortions];
+        }
+    }
+
     public function getMarginAttribute(): float
     {
         if (!$this->cost || $this->cost == 0) return 0;

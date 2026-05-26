@@ -20,7 +20,7 @@
                 });
             }
 
-            // Escuchar platos listos (canal privado)
+            // Escuchar platos listos y pagos (canal privado)
             window.Echo.private('restaurant.' + this.restaurantId)
                 .listen('OrderReadyForPickup', (e) => {
                     console.log('Plato listo recibido en POS:', e);
@@ -31,6 +31,17 @@
                 .listen('OrderPaid', (e) => {
                     console.log('Pedido pagado en POS:', e);
                     $wire.$refresh();
+                });
+
+            // Escuchar comandas enviadas a cocina para actualizar mesas (canal privado)
+            window.Echo.private('kitchen.' + this.restaurantId)
+                .listen('OrderSentToKitchen', (e) => {
+                    console.log('Pedido enviado a cocina recibido en POS:', e);
+                    $wire.$refresh();
+                    if (e.is_self_order) {
+                        this.addNotification('🛎️ ¡Mesa ' + e.table_number + ' ha realizado un autopedido!');
+                        this.playBell();
+                    }
                 });
         } else {
             this.webSocketStatus = 'disconnected';

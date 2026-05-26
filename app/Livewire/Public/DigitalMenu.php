@@ -79,37 +79,7 @@ class DigitalMenu extends Component
         $map = [];
 
         foreach ($this->dishes as $dish) {
-            if ($dish->ingredients->isEmpty()) {
-                $map[$dish->id] = ['status' => 'ok', 'portions' => null];
-                continue;
-            }
-
-            $minPortions = PHP_INT_MAX;
-
-            foreach ($dish->ingredients as $ingredient) {
-                if (!$ingredient->track_stock) continue;
-
-                $required = (float) $ingredient->pivot->quantity;
-                if ($required <= 0) continue;
-
-                $available = (float) $ingredient->stock_current;
-                $portions  = (int) floor($available / $required);
-
-                if ($portions < $minPortions) {
-                    $minPortions = $portions;
-                }
-            }
-
-            if ($minPortions === PHP_INT_MAX) {
-                // Ningún ingrediente trackea stock
-                $map[$dish->id] = ['status' => 'ok', 'portions' => null];
-            } elseif ($minPortions <= 0) {
-                $map[$dish->id] = ['status' => 'out', 'portions' => 0];
-            } elseif ($minPortions <= 3) {
-                $map[$dish->id] = ['status' => 'low', 'portions' => $minPortions];
-            } else {
-                $map[$dish->id] = ['status' => 'ok', 'portions' => $minPortions];
-            }
+            $map[$dish->id] = $dish->calculateStock();
         }
 
         return $map;
@@ -304,6 +274,9 @@ class DigitalMenu extends Component
 
         $order->recalculateTotals();
         $this->table->update(['status' => 'occupied']);
+
+        // Broadcast to KDS (Reverb) in real-time
+        event(new \App\Events\OrderSentToKitchen($order));
 
         $this->cart = [];
         $this->showCart = false;

@@ -44,6 +44,16 @@ class StockMovement extends Model
             }
 
             $item->save();
+
+            // Broadcast stock updates in real-time to the Digital Menu
+            $dishes = Dish::whereHas('ingredients', function ($query) use ($item) {
+                $query->where('inventory_items.id', $item->id);
+            })->with('ingredients')->get();
+
+            foreach ($dishes as $dish) {
+                $stock = $dish->calculateStock();
+                event(new \App\Events\DishStockUpdated($dish, $stock['status'], $stock['portions']));
+            }
         });
     }
 

@@ -128,4 +128,57 @@ class WebSocketsBroadcastingTest extends TestCase
             ]);
         $response->assertStatus(403);
     }
+
+    /**
+     * Test that stock updates trigger DishStockUpdated broadcast event on the public channel.
+     */
+    public function test_stock_movement_broadcasts_dish_stock_updated(): void
+    {
+        Event::fake([\App\Events\DishStockUpdated::class]);
+
+        $category = \App\Models\MenuCategory::create([
+            'restaurant_id' => $this->restaurant1->id,
+            'name' => 'Comida',
+            'slug' => 'comida',
+            'sort_order' => 1,
+            'is_active' => true,
+        ]);
+
+        $ingredient = \App\Models\InventoryItem::create([
+            'restaurant_id' => $this->restaurant1->id,
+            'name' => 'Carne',
+            'unit' => 'kg',
+            'stock_current' => 10.0,
+            'stock_minimum' => 2.0,
+            'stock_maximum' => 20.0,
+            'track_stock' => true,
+        ]);
+
+        $dish = \App\Models\Dish::create([
+            'restaurant_id' => $this->restaurant1->id,
+            'menu_category_id' => $category->id,
+            'name' => 'Hamburguesa',
+            'slug' => 'hamburguesa',
+            'price' => 12.50,
+            'is_available' => true,
+        ]);
+
+        // Attach ingredient to dish
+        $dish->ingredients()->attach($ingredient->id, ['quantity' => 1.0]);
+
+        // Trigger stock movement
+        \App\Models\StockMovement::create([
+            'restaurant_id' => $this->restaurant1->id,
+            'inventory_item_id' => $ingredient->id,
+            'user_id' => $this->userFromRestaurant1->id,
+            'type' => 'sale',
+            'quantity' => 2.0,
+        ]);
+
+        Event::assertDispatched(function (\App\Events\DishStockUpdated $event) use ($dish) {
+            return $event->dish->id === $dish->id &&
+                   $event->status === 'ok' && // 10.0 - 2.0 = 8.0 portions, status 'ok'
+                   $event->broadcastOn()[0]->name === 'restaurant.public.' . $this->restaurant1->id;
+        });
+    }
 }

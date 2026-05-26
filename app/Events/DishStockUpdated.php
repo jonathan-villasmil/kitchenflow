@@ -3,25 +3,28 @@
 namespace App\Events;
 
 use Illuminate\Broadcasting\Channel;
-use Illuminate\Broadcasting\PrivateChannel;
 use Illuminate\Broadcasting\InteractsWithSockets;
 use Illuminate\Contracts\Broadcasting\ShouldBroadcastNow;
 use Illuminate\Foundation\Events\Dispatchable;
 use Illuminate\Queue\SerializesModels;
-use App\Models\Order;
+use App\Models\Dish;
 
-class OrderSentToKitchen implements ShouldBroadcastNow
+class DishStockUpdated implements ShouldBroadcastNow
 {
     use Dispatchable, InteractsWithSockets, SerializesModels;
 
-    public $order;
+    public $dish;
+    public $status;
+    public $portions;
 
     /**
      * Create a new event instance.
      */
-    public function __construct(Order $order)
+    public function __construct(Dish $dish, string $status, ?int $portions = null)
     {
-        $this->order = $order;
+        $this->dish = $dish;
+        $this->status = $status;
+        $this->portions = $portions;
     }
 
     /**
@@ -30,7 +33,7 @@ class OrderSentToKitchen implements ShouldBroadcastNow
     public function broadcastOn(): array
     {
         return [
-            new PrivateChannel('kitchen.' . $this->order->restaurant_id),
+            new Channel('restaurant.public.' . $this->dish->restaurant_id),
         ];
     }
 
@@ -40,10 +43,9 @@ class OrderSentToKitchen implements ShouldBroadcastNow
     public function broadcastWith(): array
     {
         return [
-            'order_id' => $this->order->id,
-            'table_number' => $this->order->table?->number ?? 'N/A',
-            'items_count' => $this->order->items->count(),
-            'is_self_order' => $this->order->user_id === null,
+            'dish_id' => $this->dish->id,
+            'status' => $this->status,
+            'portions' => $this->portions,
         ];
     }
 }

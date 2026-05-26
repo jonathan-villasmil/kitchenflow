@@ -244,4 +244,18 @@
             </div>
         </div>
     @endif
+
+    <script>
+        document.addEventListener('livewire:initialized', () => {
+            if (window.Echo) {
+                const restaurantId = @js($table->restaurant_id);
+                console.log('Iniciando suscripción de stock en canal público:', 'restaurant.public.' + restaurantId);
+                window.Echo.channel('restaurant.public.' + restaurantId)
+                    .listen('DishStockUpdated', (e) => {
+                        console.log('Stock de plato actualizado en tiempo real:', e);
+                        @this.call('$refresh');
+                    });
+            }
+        });
+    </script>
 </div>
