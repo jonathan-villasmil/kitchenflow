@@ -154,12 +154,32 @@ class PosTerminal extends Component
     public function verifyPin()
     {
         $restaurantId = auth()->user()->restaurant_id ?? 1;
-        $user = \App\Models\User::where('pin', $this->enteredPin)
+        $users = \App\Models\User::whereNotNull('pin')
             ->where('restaurant_id', $restaurantId)
-            ->first();
+            ->get();
 
-        if ($user) {
-            auth()->login($user);
+        $matchedUser = null;
+        foreach ($users as $u) {
+            // Check standard hash
+            try {
+                if (\Hash::check($this->enteredPin, $u->pin)) {
+                    $matchedUser = $u;
+                    break;
+                }
+            } catch (\Throwable $e) {
+                // If it's not a valid hash (e.g. legacy plain text), catch and fallback
+            }
+            // Check fallback plain text (for existing users before Fase B migration)
+            if ($u->pin === $this->enteredPin) {
+                // Auto-upgrade plain text PIN to secure hash
+                $u->update(['pin' => $this->enteredPin]); // This will automatically get hashed because of 'hashed' cast!
+                $matchedUser = $u;
+                break;
+            }
+        }
+
+        if ($matchedUser) {
+            auth()->login($matchedUser);
             session()->regenerate();
             
             return redirect()->route('pos');
@@ -440,11 +460,31 @@ class PosTerminal extends Component
     {
         $restaurantId = auth()->user()->restaurant_id ?? 1;
         
-        // Verify PIN belongs to a Manager or Admin
-        $manager = \App\Models\User::where('pin', $this->cancellationPin)
+        // Verify PIN belongs to a Manager or Admin with hashed check
+        $managers = \App\Models\User::whereNotNull('pin')
             ->where('restaurant_id', $restaurantId)
             ->role(['manager', 'super_admin'])
-            ->first();
+            ->get();
+
+        $manager = null;
+        foreach ($managers as $m) {
+            // Check standard hash
+            try {
+                if (\Hash::check($this->cancellationPin, $m->pin)) {
+                    $manager = $m;
+                    break;
+                }
+            } catch (\Throwable $e) {
+                // If it's not a valid hash (e.g. legacy plain text), catch and fallback
+            }
+            // Check fallback plain text
+            if ($m->pin === $this->cancellationPin) {
+                // Auto-upgrade plain text PIN to secure hash
+                $m->update(['pin' => $this->cancellationPin]);
+                $manager = $m;
+                break;
+            }
+        }
 
         if ($manager) {
             $key = $this->itemKeyToCancel;

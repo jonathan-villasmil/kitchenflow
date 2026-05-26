@@ -35,12 +35,14 @@ class UserForm
 
                         TextInput::make('pin')
                             ->label('PIN de Caja (4 dígitos)')
-                            ->numeric()
                             ->password()
+                            ->revealable()
+                            ->numeric()
                             ->maxLength(4)
                             ->minLength(4)
-                            ->revealable()
-                            ->unique(ignoreRecord: true),
+                            ->formatStateUsing(fn ($state) => null)
+                            ->dehydrated(fn ($state) => filled($state))
+                            ->required(fn (string $context): bool => $context === 'create'),
 
                         Select::make('roles')
                             ->label('Rol del Sistema (Permisos)')
