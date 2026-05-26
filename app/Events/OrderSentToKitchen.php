@@ -3,15 +3,14 @@
 namespace App\Events;
 
 use Illuminate\Broadcasting\Channel;
-use Illuminate\Broadcasting\InteractsWithSockets;
-use Illuminate\Broadcasting\PresenceChannel;
 use Illuminate\Broadcasting\PrivateChannel;
+use Illuminate\Broadcasting\InteractsWithSockets;
 use Illuminate\Contracts\Broadcasting\ShouldBroadcast;
 use Illuminate\Foundation\Events\Dispatchable;
 use Illuminate\Queue\SerializesModels;
 use App\Models\Order;
 
-class OrderPaid implements ShouldBroadcast
+class OrderSentToKitchen implements ShouldBroadcast
 {
     use Dispatchable, InteractsWithSockets, SerializesModels;
 
@@ -27,13 +26,11 @@ class OrderPaid implements ShouldBroadcast
 
     /**
      * Get the channels the event should broadcast on.
-     *
-     * @return array<int, \Illuminate\Broadcasting\Channel>
      */
     public function broadcastOn(): array
     {
         return [
-            new PrivateChannel('restaurant.' . $this->order->restaurant_id),
+            new PrivateChannel('kitchen.' . $this->order->restaurant_id),
         ];
     }
 
@@ -44,9 +41,8 @@ class OrderPaid implements ShouldBroadcast
     {
         return [
             'order_id' => $this->order->id,
-            'restaurant_id' => $this->order->restaurant_id,
-            'table_id' => $this->order->table_id,
+            'table_number' => $this->order->table?->number ?? 'N/A',
+            'items_count' => $this->order->items->count(),
         ];
     }
 }
-

@@ -31,4 +31,16 @@ class OrderReadyForPickup implements ShouldBroadcast
             new PrivateChannel('restaurant.' . $this->order->restaurant_id),
         ];
     }
+
+    /**
+     * Data to broadcast.
+     */
+    public function broadcastWith(): array
+    {
+        return [
+            'order_id' => $this->order->id,
+            'restaurant_id' => $this->order->restaurant_id,
+            'table_number' => $this->order->table?->number ?? 'N/A',
+        ];
+    }
 }

@@ -764,7 +764,7 @@ class PosTerminal extends Component
             }
 
             // Broadcast to KDS (Reverb)
-            // event(new \App\Events\OrderSentToKitchen($order));
+            event(new \App\Events\OrderSentToKitchen($order));
 
             session()->flash('success', $course === null ? '✅ Pedido mandado completo' : "✅ Marchando Platos del Curso {$course}");
         }

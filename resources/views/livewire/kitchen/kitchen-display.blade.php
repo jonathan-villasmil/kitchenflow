@@ -2,6 +2,7 @@
     orderCount: {{ $this->activeOrders->count() }},
     lastRefresh: new Date(),
     soundEnabled: @js($soundEnabled),
+    restaurantId: @js(auth()->user()->restaurant_id ?? 1),
 
     init() {
         // Escuchar el evento de Livewire cuando el componente se actualiza
@@ -10,6 +11,15 @@
                 this.$nextTick(() => this.onRefresh());
             });
         });
+
+        // Configurar Laravel Echo para escuchar pedidos enviados a cocina (canal privado)
+        if (window.Echo) {
+            window.Echo.private('kitchen.' + this.restaurantId)
+                .listen('OrderSentToKitchen', (e) => {
+                    console.log('Nuevo pedido en tiempo real recibido para KDS:', e);
+                    $wire.$refresh();
+                });
+        }
     },
 
     onRefresh() {
@@ -90,7 +100,7 @@
             {{-- Indicador de último refresh --}}
             <div class="flex items-center gap-2 text-xs text-gray-500 bg-gray-800 px-3 py-1.5 rounded-lg">
                 <span class="w-2 h-2 bg-green-500 rounded-full animate-pulse inline-block"></span>
-                <span>Auto-actualización cada 5s</span>
+                <span>Tiempo real / Fallback 30s</span>
                 <span class="font-mono text-gray-400" x-text="formattedTime(lastRefresh)"></span>
             </div>
 
@@ -119,7 +129,7 @@
     </div>
 
     <!-- TICKETS GRID -->
-    <div class="p-6 h-[calc(100vh-4rem)] overflow-y-auto overflow-x-hidden relative" wire:poll.5s>
+    <div class="p-6 h-[calc(100vh-4rem)] overflow-y-auto overflow-x-hidden relative" wire:poll.30s>
         <div class="flex flex-wrap gap-4 items-start">
             
             @forelse($this->activeOrders as $order)

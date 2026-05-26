@@ -9,3 +9,8 @@ Broadcast::channel('App.Models.User.{id}', function ($user, $id) {
 Broadcast::channel('restaurant.{id}', function ($user, $id) {
     return (int) $user->restaurant_id === (int) $id;
 });
+
+Broadcast::channel('kitchen.{id}', function ($user, $id) {
+    return (int) $user->restaurant_id === (int) $id;
+});
+

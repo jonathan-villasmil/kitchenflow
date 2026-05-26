@@ -1,4 +1,49 @@
-<div>
+<div x-data="{
+    notifications: [],
+    restaurantId: @js(auth()->user()->restaurant_id ?? 1),
+
+    init() {
+        if (window.Echo) {
+            // Escuchar platos listos (canal privado)
+            window.Echo.private('restaurant.' + this.restaurantId)
+                .listen('OrderReadyForPickup', (e) => {
+                    console.log('Plato listo recibido en POS:', e);
+                    this.addNotification('🔔 ¡' + (e.table_number ? 'Mesa ' + e.table_number : 'Pedido') + ' listo para retirar!');
+                    this.playBell();
+                    $wire.$refresh();
+                })
+                .listen('OrderPaid', (e) => {
+                    console.log('Pedido pagado en POS:', e);
+                    $wire.$refresh();
+                });
+        }
+    },
+
+    addNotification(message) {
+        const id = Date.now();
+        this.notifications.push({ id, message });
+        setTimeout(() => {
+            this.notifications = this.notifications.filter(n => n.id !== id);
+        }, 6000);
+    },
+
+    playBell() {
+        try {
+            const ctx = new (window.AudioContext || window.webkitAudioContext)();
+            const osc = ctx.createOscillator();
+            const gain = ctx.createGain();
+            osc.type = 'sine';
+            osc.frequency.setValueAtTime(587.33, ctx.currentTime); // D5
+            osc.frequency.setValueAtTime(880, ctx.currentTime + 0.15); // A5
+            gain.gain.setValueAtTime(0.4, ctx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.6);
+            osc.connect(gain);
+            gain.connect(ctx.destination);
+            osc.start();
+            osc.stop(ctx.currentTime + 0.6);
+        } catch(e) {}
+    }
+}">
     @if($isLocked)
         <!-- PIN LOCK OVERLAY -->
         <div class="fixed inset-0 bg-black/95 z-[100] flex flex-col items-center justify-center">
@@ -861,4 +906,22 @@
     </script>
     @endif
     @endif
+
+    <!-- REAL-TIME WEBSOCKET TOASTS -->
+    <div class="fixed bottom-4 right-4 z-[9999] flex flex-col gap-2 max-w-sm pointer-events-none">
+        <template x-for="n in notifications" :key="n.id">
+            <div x-show="true"
+                 x-transition:enter="transition ease-out duration-300 transform"
+                 x-transition:enter-start="translate-y-4 opacity-0 scale-95"
+                 x-transition:enter-end="translate-y-0 opacity-100 scale-100"
+                 x-transition:leave="transition ease-in duration-250 transform"
+                 x-transition:leave-start="translate-y-0 opacity-100 scale-100"
+                 x-transition:leave-end="translate-y-2 opacity-0 scale-90"
+                 class="bg-gradient-to-r from-orange-500 to-amber-600 text-white px-6 py-4 rounded-xl shadow-2xl border border-orange-400 font-bold flex items-center gap-3 pointer-events-auto cursor-pointer"
+                 @click="notifications = notifications.filter(item => item.id !== n.id)">
+                <span class="text-xl">🛎️</span>
+                <span x-text="n.message"></span>
+            </div>
+        </template>
+    </div>
 </div>
