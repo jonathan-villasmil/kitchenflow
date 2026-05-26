@@ -26,6 +26,25 @@ class WebSocketsBroadcastingTest extends TestCase
     {
         parent::setUp();
 
+        config([
+            'broadcasting.default' => 'reverb',
+            'broadcasting.connections.reverb' => [
+                'driver' => 'reverb',
+                'key' => 'szakvt1ozguunc8c1ywp',
+                'secret' => 'lyshyshssrbgrhhrvz1r',
+                'app_id' => '799615',
+                'options' => [
+                    'host' => 'localhost',
+                    'port' => 8080,
+                    'scheme' => 'http',
+                    'useTLS' => false,
+                ],
+            ]
+        ]);
+
+        // Re-load channels on the newly selected reverb broadcaster
+        require base_path('routes/channels.php');
+
         $this->restaurant1 = Restaurant::create(['name' => 'Restaurante 1', 'slug' => 'restaurante-1']);
         $this->restaurant2 = Restaurant::create(['name' => 'Restaurante 2', 'slug' => 'restaurante-2']);
 
@@ -85,7 +104,6 @@ class WebSocketsBroadcastingTest extends TestCase
                 'channel_name' => 'private-kitchen.' . $this->restaurant1->id,
                 'socket_id' => '1234.5678',
             ]);
-        dd($response->getStatusCode(), $response->getContent());
         $response->assertStatus(403);
     }
 

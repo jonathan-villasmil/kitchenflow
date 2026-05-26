@@ -3,6 +3,7 @@
     lastRefresh: new Date(),
     soundEnabled: @js($soundEnabled),
     restaurantId: @js(auth()->user()->restaurant_id ?? 1),
+    webSocketStatus: 'connecting',
 
     init() {
         // Escuchar el evento de Livewire cuando el componente se actualiza
@@ -14,11 +15,28 @@
 
         // Configurar Laravel Echo para escuchar pedidos enviados a cocina (canal privado)
         if (window.Echo) {
+            const pusher = window.Echo.connector.pusher;
+            if (pusher && pusher.connection) {
+                this.webSocketStatus = pusher.connection.state === 'connected' ? 'connected' : 'connecting';
+                pusher.connection.bind('state_change', (states) => {
+                    console.log('Cambio de estado del WebSocket KDS:', states.current);
+                    if (states.current === 'connected') {
+                        this.webSocketStatus = 'connected';
+                    } else if (states.current === 'connecting') {
+                        this.webSocketStatus = 'connecting';
+                    } else {
+                        this.webSocketStatus = 'disconnected';
+                    }
+                });
+            }
+
             window.Echo.private('kitchen.' + this.restaurantId)
                 .listen('OrderSentToKitchen', (e) => {
                     console.log('Nuevo pedido en tiempo real recibido para KDS:', e);
                     $wire.$refresh();
                 });
+        } else {
+            this.webSocketStatus = 'disconnected';
         }
     },
 
@@ -97,11 +115,35 @@
         </h1>
 
         <div class="flex items-center gap-4">
-            {{-- Indicador de último refresh --}}
-            <div class="flex items-center gap-2 text-xs text-gray-500 bg-gray-800 px-3 py-1.5 rounded-lg">
-                <span class="w-2 h-2 bg-green-500 rounded-full animate-pulse inline-block"></span>
-                <span>Tiempo real / Fallback 30s</span>
-                <span class="font-mono text-gray-400" x-text="formattedTime(lastRefresh)"></span>
+            {{-- Indicador de último refresh y conexión --}}
+            <div class="flex items-center gap-3 text-xs bg-gray-800 px-3 py-1.5 rounded-lg border border-gray-700">
+                <!-- WebSocket Status Badge -->
+                <div class="flex items-center gap-1.5 font-bold transition-all duration-300">
+                    <template x-if="webSocketStatus === 'connected'">
+                        <span class="flex items-center gap-1 text-green-400">
+                            <span class="w-2.5 h-2.5 bg-green-500 rounded-full animate-ping inline-block"></span>
+                            <span class="w-2.5 h-2.5 bg-green-500 rounded-full inline-block -ml-4"></span>
+                            <span>Tiempo Real</span>
+                        </span>
+                    </template>
+                    <template x-if="webSocketStatus === 'connecting'">
+                        <span class="flex items-center gap-1 text-yellow-400">
+                            <span class="w-2.5 h-2.5 bg-yellow-500 rounded-full animate-pulse inline-block"></span>
+                            <span>Conectando...</span>
+                        </span>
+                    </template>
+                    <template x-if="webSocketStatus === 'disconnected'">
+                        <span class="flex items-center gap-1 text-red-400">
+                            <span class="w-2.5 h-2.5 bg-red-500 rounded-full inline-block"></span>
+                            <span>Modo Fallback 30s</span>
+                        </span>
+                    </template>
+                </div>
+                
+                <span class="text-gray-700">|</span>
+                
+                <span class="text-gray-500">Refrescado:</span>
+                <span class="font-mono font-bold text-gray-300" x-text="formattedTime(lastRefresh)"></span>
             </div>
 
             <select wire:model.live="station" wire:key="station-select" class="bg-gray-800 border-gray-700 rounded-lg text-white">

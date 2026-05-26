@@ -1,9 +1,25 @@
 <div x-data="{
     notifications: [],
     restaurantId: @js(auth()->user()->restaurant_id ?? 1),
+    webSocketStatus: 'connecting',
 
     init() {
         if (window.Echo) {
+            const pusher = window.Echo.connector.pusher;
+            if (pusher && pusher.connection) {
+                this.webSocketStatus = pusher.connection.state === 'connected' ? 'connected' : 'connecting';
+                pusher.connection.bind('state_change', (states) => {
+                    console.log('Cambio de estado del WebSocket POS:', states.current);
+                    if (states.current === 'connected') {
+                        this.webSocketStatus = 'connected';
+                    } else if (states.current === 'connecting') {
+                        this.webSocketStatus = 'connecting';
+                    } else {
+                        this.webSocketStatus = 'disconnected';
+                    }
+                });
+            }
+
             // Escuchar platos listos (canal privado)
             window.Echo.private('restaurant.' + this.restaurantId)
                 .listen('OrderReadyForPickup', (e) => {
@@ -16,6 +32,8 @@
                     console.log('Pedido pagado en POS:', e);
                     $wire.$refresh();
                 });
+        } else {
+            this.webSocketStatus = 'disconnected';
         }
     },
 
@@ -98,9 +116,30 @@
             <div class="flex justify-between items-center mb-6">
                 <div>
                     <h1 class="text-2xl font-bold">Seleccionar Mesa</h1>
-                    <div class="flex items-center gap-2 mt-1">
-                        <span class="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
-                        <span class="text-sm text-gray-400 font-medium">Sesión activa: <span class="text-white font-bold">{{ auth()->user()->name }}</span></span>
+                    <div class="flex items-center gap-3 mt-1.5 flex-wrap">
+                        <!-- WebSocket Status Indicator -->
+                        <span class="inline-flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded bg-gray-900 border border-gray-800 transition-all duration-300">
+                            <template x-if="webSocketStatus === 'connected'">
+                                <span class="flex items-center gap-1.5 text-green-400">
+                                    <span class="w-2 h-2 bg-green-500 rounded-full animate-pulse inline-block"></span>
+                                    <span>Tiempo Real</span>
+                                </span>
+                            </template>
+                            <template x-if="webSocketStatus === 'connecting'">
+                                <span class="flex items-center gap-1.5 text-yellow-400">
+                                    <span class="w-2 h-2 bg-yellow-500 rounded-full animate-pulse inline-block"></span>
+                                    <span>Conectando...</span>
+                                </span>
+                            </template>
+                            <template x-if="webSocketStatus === 'disconnected'">
+                                <span class="flex items-center gap-1.5 text-red-400">
+                                    <span class="w-2 h-2 bg-red-500 rounded-full inline-block"></span>
+                                    <span>Modo Fallback</span>
+                                </span>
+                            </template>
+                        </span>
+                        
+                        <span class="text-xs text-gray-400 font-medium">Sesión activa: <span class="text-white font-bold">{{ auth()->user()->name }}</span></span>
                         
                         <a href="{{ route('help') }}" target="_blank" class="ml-2 px-2 py-0.5 bg-gray-800 hover:bg-gray-700 text-xs text-blue-400 border border-blue-500/30 rounded-md transition flex items-center gap-1">
                             <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8.228 9c.549-1.165 2.03-2 3.772-2 2.21 0 4 1.343 4 3 0 1.4-1.278 2.575-3.006 2.907-.542.104-.994.54-.994 1.093m0 3h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
