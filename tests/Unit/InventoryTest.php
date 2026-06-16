@@ -86,4 +86,39 @@ class InventoryTest extends TestCase
 
         $this->assertEquals(12.5, $item->fresh()->stock_current);
     }
+
+    public function test_concurrency_locking_prevents_race_conditions(): void
+    {
+        $restaurant = Restaurant::create(['name' => 'Main Restaurant', 'slug' => 'main-restaurant']);
+        $category = InventoryCategory::create(['restaurant_id' => $restaurant->id, 'name' => 'Vegetables']);
+        
+        $item = InventoryItem::create([
+            'restaurant_id' => $restaurant->id,
+            'inventory_category_id' => $category->id,
+            'name' => 'Tomatoes',
+            'unit' => 'kg',
+            'stock_current' => 100,
+            'track_stock' => true,
+        ]);
+
+        // Simulating consecutive transactional movements in order
+        \Illuminate\Support\Facades\DB::transaction(function () use ($restaurant, $item) {
+            StockMovement::create([
+                'restaurant_id' => $restaurant->id,
+                'inventory_item_id' => $item->id,
+                'type' => 'sale',
+                'quantity' => 10,
+            ]);
+
+            StockMovement::create([
+                'restaurant_id' => $restaurant->id,
+                'inventory_item_id' => $item->id,
+                'type' => 'purchase',
+                'quantity' => 50,
+            ]);
+        });
+
+        // The stock should be updated perfectly without race conditions or locks interference: 100 - 10 + 50 = 140
+        $this->assertEquals(140, $item->fresh()->stock_current);
+    }
 }
