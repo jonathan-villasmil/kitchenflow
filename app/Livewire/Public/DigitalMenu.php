@@ -25,6 +25,24 @@ class DigitalMenu extends Component
     public array $cart = [];
     public bool $showCart = false;
 
+    private function findDishForTableRestaurant(?int $dishId): ?Dish
+    {
+        if (!$dishId) return null;
+
+        return Dish::with('modifierGroups.modifiers')
+            ->where('restaurant_id', $this->table->restaurant_id)
+            ->find($dishId);
+    }
+
+    private function validateCartBelongsToTableRestaurant(): void
+    {
+        foreach ($this->cart as $item) {
+            if (!$this->findDishForTableRestaurant($item['dish_id'] ?? null)) {
+                abort(403, 'Plato no disponible para esta mesa.');
+            }
+        }
+    }
+
     public function mount(Table $table)
     {
         if (!$table->verifyMenuHash(request()->query('hash'))) {
@@ -44,6 +62,10 @@ class DigitalMenu extends Component
 
     public function selectCategory(?int $categoryId)
     {
+        if ($categoryId && !MenuCategory::where('restaurant_id', $this->table->restaurant_id)->whereKey($categoryId)->exists()) {
+            abort(403, 'Categoría no disponible para esta mesa.');
+        }
+
         $this->selectedCategoryId = $categoryId;
         $this->searchQuery = '';
     }
@@ -88,17 +110,17 @@ class DigitalMenu extends Component
     public function getActiveDishForModifiersProperty()
     {
         if (!$this->selectedDishForModifiers) return null;
-        return Dish::with('modifierGroups.modifiers')->find($this->selectedDishForModifiers);
+        return $this->findDishForTableRestaurant($this->selectedDishForModifiers);
     }
 
     public function addToCart(int $dishId)
     {
+        $dish = $this->findDishForTableRestaurant($dishId);
+        if (!$dish || !$dish->is_available) abort(403, 'Plato no disponible para esta mesa.');
+
         // Verificar stock antes de aceptar el pedido
         $stockInfo = $this->stockMap[$dishId] ?? ['status' => 'ok'];
         if ($stockInfo['status'] === 'out') return;
-
-        $dish = Dish::with('modifierGroups.modifiers')->find($dishId);
-        if (!$dish || !$dish->is_available) return;
 
         if ($dish->modifierGroups->count() > 0) {
             // Open modal
@@ -132,8 +154,8 @@ class DigitalMenu extends Component
 
     public function confirmModifiers()
     {
-        $dish = Dish::with('modifierGroups.modifiers')->find($this->selectedDishForModifiers);
-        if (!$dish) return;
+        $dish = $this->findDishForTableRestaurant($this->selectedDishForModifiers);
+        if (!$dish || !$dish->is_available) abort(403, 'Plato no disponible para esta mesa.');
 
         foreach ($dish->modifierGroups as $group) {
             if ($group->is_required && empty($this->selectedModifiers[$group->id] ?? [])) {
@@ -233,6 +255,8 @@ class DigitalMenu extends Component
     public function submitOrder()
     {
         if (empty($this->cart)) return;
+
+        $this->validateCartBelongsToTableRestaurant();
 
         $order = $this->table->activeOrder;
 
