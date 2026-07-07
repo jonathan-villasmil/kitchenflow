@@ -4,6 +4,7 @@ namespace App\Filament\Resources;
 
 use App\Filament\Resources\Concerns\ScopedToRestaurant;
 use App\Models\Restaurant;
+use Filament\Actions\CreateAction;
 use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
@@ -25,6 +26,11 @@ class RestaurantResource extends Resource
     public static function getNavigationGroup(): ?string { return 'Configuración'; }
     public static function getModelLabel(): string { return 'Restaurante'; }
     public static function getPluralModelLabel(): string { return 'Configuración'; }
+
+    public static function canCreate(): bool
+    {
+        return auth()->user()?->hasRole('super_admin') ?? false;
+    }
 
     public static function form(Schema $schema): Schema
     {
@@ -110,6 +116,10 @@ class RestaurantResource extends Resource
                     ->toggleable(isToggledHiddenByDefault: true),
             ])
             ->filters([])
+            ->headerActions([
+                CreateAction::make()
+                    ->visible(fn (): bool => static::canCreate()),
+            ])
             ->actions([
                 EditAction::make(),
             ]);
