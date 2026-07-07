@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\StockMovements;
 
+use App\Filament\Resources\Concerns\ScopedToRestaurant;
 use App\Filament\Resources\StockMovements\Pages\CreateStockMovement;
 use App\Filament\Resources\StockMovements\Pages\ListStockMovements;
 use App\Models\StockMovement;
@@ -15,6 +16,8 @@ use Illuminate\Database\Eloquent\Model;
 
 class StockMovementResource extends Resource
 {
+    use ScopedToRestaurant;
+
     protected static ?string $model = StockMovement::class;
     protected static ?string $recordTitleAttribute = 'id';
 

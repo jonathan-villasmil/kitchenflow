@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\InventoryItems;
 
+use App\Filament\Resources\Concerns\ScopedToRestaurant;
 use App\Filament\Resources\InventoryItems\Pages\CreateInventoryItem;
 use App\Filament\Resources\InventoryItems\Pages\EditInventoryItem;
 use App\Filament\Resources\InventoryItems\Pages\ListInventoryItems;
@@ -16,6 +17,8 @@ use Illuminate\Database\Eloquent\Builder;
 
 class InventoryItemResource extends Resource
 {
+    use ScopedToRestaurant;
+
     protected static ?string $model = InventoryItem::class;
     protected static ?string $recordTitleAttribute = 'name';
 

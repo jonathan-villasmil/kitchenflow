@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\ModifierGroups;
 
+use App\Filament\Resources\Concerns\ScopedToRestaurant;
 use App\Filament\Resources\ModifierGroups\Pages\CreateModifierGroup;
 use App\Filament\Resources\ModifierGroups\Pages\EditModifierGroup;
 use App\Filament\Resources\ModifierGroups\Pages\ListModifierGroups;
@@ -16,6 +17,8 @@ use Filament\Tables\Table;
 
 class ModifierGroupResource extends Resource
 {
+    use ScopedToRestaurant;
+
     protected static ?string $model = ModifierGroup::class;
 
     protected static \UnitEnum|string|null $navigationGroup = 'Carta & Menú';

@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\CashRegisters;
 
+use App\Filament\Resources\Concerns\ScopedToRestaurant;
 use App\Filament\Resources\CashRegisters\Pages\ManageCashRegisters;
 use App\Models\CashRegister;
 use BackedEnum;
@@ -23,6 +24,8 @@ use Filament\Tables\Table;
 
 class CashRegisterResource extends Resource
 {
+    use ScopedToRestaurant;
+
     protected static ?string $model = CashRegister::class;
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedRectangleStack;

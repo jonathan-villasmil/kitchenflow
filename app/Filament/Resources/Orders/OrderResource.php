@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Orders;
 
+use App\Filament\Resources\Concerns\ScopedToRestaurant;
 use App\Filament\Resources\Orders\Pages\CreateOrder;
 use App\Filament\Resources\Orders\Pages\EditOrder;
 use App\Filament\Resources\Orders\Pages\ListOrders;
@@ -16,6 +17,8 @@ use Filament\Tables\Table;
 
 class OrderResource extends Resource
 {
+    use ScopedToRestaurant;
+
     protected static ?string $model = Order::class;
     protected static ?string $recordTitleAttribute = 'number';
 

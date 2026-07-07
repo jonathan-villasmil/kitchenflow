@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\HappyHours;
 
+use App\Filament\Resources\Concerns\ScopedToRestaurant;
 use App\Filament\Resources\HappyHours\Pages\CreateHappyHour;
 use App\Filament\Resources\HappyHours\Pages\EditHappyHour;
 use App\Filament\Resources\HappyHours\Pages\ListHappyHours;
@@ -16,6 +17,8 @@ use Filament\Tables\Table;
 
 class HappyHourResource extends Resource
 {
+    use ScopedToRestaurant;
+
     protected static ?string $model = HappyHour::class;
 
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedRectangleStack;

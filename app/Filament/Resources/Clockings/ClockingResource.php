@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Clockings;
 
+use App\Filament\Resources\Concerns\ScopedToRestaurant;
 use App\Filament\Resources\Clockings\Pages\CreateClocking;
 use App\Filament\Resources\Clockings\Pages\EditClocking;
 use App\Filament\Resources\Clockings\Pages\ListClockings;
@@ -14,7 +15,10 @@ use Filament\Tables\Table;
 
 class ClockingResource extends Resource
 {
+    use ScopedToRestaurant;
+
     protected static ?string $model = Clocking::class;
+    protected static ?string $restaurantScopedRelation = 'employee';
     protected static ?string $recordTitleAttribute = 'id';
 
     public static function getNavigationGroup(): ?string { return 'Personas'; }

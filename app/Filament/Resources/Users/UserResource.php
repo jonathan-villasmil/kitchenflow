@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Users;
 
+use App\Filament\Resources\Concerns\ScopedToRestaurant;
 use App\Filament\Resources\Users\Pages\CreateUser;
 use App\Filament\Resources\Users\Pages\EditUser;
 use App\Filament\Resources\Users\Pages\ListUsers;
@@ -16,6 +17,8 @@ use Filament\Tables\Table;
 
 class UserResource extends Resource
 {
+    use ScopedToRestaurant;
+
     protected static ?string $model = User::class;
     
     protected static string|\BackedEnum|null $navigationIcon = 'heroicon-o-shield-check';

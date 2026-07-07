@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Shifts;
 
+use App\Filament\Resources\Concerns\ScopedToRestaurant;
 use App\Filament\Resources\Shifts\Pages\CreateShift;
 use App\Filament\Resources\Shifts\Pages\EditShift;
 use App\Filament\Resources\Shifts\Pages\ListShifts;
@@ -14,6 +15,8 @@ use Filament\Tables\Table;
 
 class ShiftResource extends Resource
 {
+    use ScopedToRestaurant;
+
     protected static ?string $model = Shift::class;
     protected static ?string $recordTitleAttribute = 'id';
 

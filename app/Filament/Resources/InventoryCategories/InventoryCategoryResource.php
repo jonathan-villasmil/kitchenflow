@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\InventoryCategories;
 
+use App\Filament\Resources\Concerns\ScopedToRestaurant;
 use App\Filament\Resources\InventoryCategories\Pages\CreateInventoryCategory;
 use App\Filament\Resources\InventoryCategories\Pages\EditInventoryCategory;
 use App\Filament\Resources\InventoryCategories\Pages\ListInventoryCategories;
@@ -14,6 +15,8 @@ use Filament\Tables\Table;
 
 class InventoryCategoryResource extends Resource
 {
+    use ScopedToRestaurant;
+
     protected static ?string $model = InventoryCategory::class;
     protected static ?string $recordTitleAttribute = 'name';
 

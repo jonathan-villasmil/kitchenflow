@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Tables;
 
+use App\Filament\Resources\Concerns\ScopedToRestaurant;
 use App\Filament\Resources\Tables\Pages\CreateTable;
 use App\Filament\Resources\Tables\Pages\EditTable;
 use App\Filament\Resources\Tables\Pages\ListTables;
@@ -16,6 +17,8 @@ use Filament\Tables\Table;
 
 class TableResource extends Resource
 {
+    use ScopedToRestaurant;
+
     protected static ?string $model = TableModel::class;
     protected static ?string $recordTitleAttribute = 'number';
 

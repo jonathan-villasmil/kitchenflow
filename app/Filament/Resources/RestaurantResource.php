@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources;
 
+use App\Filament\Resources\Concerns\ScopedToRestaurant;
 use App\Models\Restaurant;
 use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\Select;
@@ -16,7 +17,10 @@ use Filament\Tables\Table;
 
 class RestaurantResource extends Resource
 {
+    use ScopedToRestaurant;
+
     protected static ?string $model = Restaurant::class;
+    protected static ?string $restaurantScopedColumn = 'id';
     protected static string|\BackedEnum|null $navigationIcon = 'heroicon-o-building-storefront';
     public static function getNavigationGroup(): ?string { return 'Configuración'; }
     public static function getModelLabel(): string { return 'Restaurante'; }

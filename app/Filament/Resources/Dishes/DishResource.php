@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Dishes;
 
+use App\Filament\Resources\Concerns\ScopedToRestaurant;
 use App\Filament\Resources\Dishes\Pages\CreateDish;
 use App\Filament\Resources\Dishes\Pages\EditDish;
 use App\Filament\Resources\Dishes\Pages\ListDishes;
@@ -16,6 +17,8 @@ use Filament\Tables\Table;
 
 class DishResource extends Resource
 {
+    use ScopedToRestaurant;
+
     protected static ?string $model = Dish::class;
     protected static string|BackedEnum|null $navigationIcon = Heroicon::OutlinedClipboardDocumentList;
     protected static ?string $recordTitleAttribute = 'name';

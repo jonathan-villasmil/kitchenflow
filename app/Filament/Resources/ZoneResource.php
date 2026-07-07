@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources;
 
+use App\Filament\Resources\Concerns\ScopedToRestaurant;
 use App\Models\Zone;
 use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\Select;
@@ -16,6 +17,8 @@ use Filament\Tables\Table;
 
 class ZoneResource extends Resource
 {
+    use ScopedToRestaurant;
+
     protected static ?string $model = Zone::class;
     protected static string|\BackedEnum|null $navigationIcon = 'heroicon-o-map';
     public static function getNavigationGroup(): ?string { return 'Restaurante'; }

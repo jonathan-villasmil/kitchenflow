@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Modifiers;
 
+use App\Filament\Resources\Concerns\ScopedToRestaurant;
 use App\Filament\Resources\Modifiers\Pages\CreateModifier;
 use App\Filament\Resources\Modifiers\Pages\EditModifier;
 use App\Filament\Resources\Modifiers\Pages\ListModifiers;
@@ -16,7 +17,10 @@ use Filament\Tables\Table;
 
 class ModifierResource extends Resource
 {
+    use ScopedToRestaurant;
+
     protected static ?string $model = Modifier::class;
+    protected static ?string $restaurantScopedRelation = 'modifierGroup';
 
     protected static bool $shouldRegisterNavigation = false;
 

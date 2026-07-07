@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Employees;
 
+use App\Filament\Resources\Concerns\ScopedToRestaurant;
 use App\Filament\Resources\Employees\Pages\CreateEmployee;
 use App\Filament\Resources\Employees\Pages\EditEmployee;
 use App\Filament\Resources\Employees\Pages\ListEmployees;
@@ -14,6 +15,8 @@ use Filament\Tables\Table;
 
 class EmployeeResource extends Resource
 {
+    use ScopedToRestaurant;
+
     protected static ?string $model = Employee::class;
     protected static ?string $recordTitleAttribute = 'first_name';
 
