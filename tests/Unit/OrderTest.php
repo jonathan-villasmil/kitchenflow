@@ -38,4 +38,33 @@ class OrderTest extends TestCase
 
         $this->assertEquals('00002', $order2->number);
     }
+
+    public function test_order_numbers_are_unique_per_restaurant_not_globally(): void
+    {
+        $restaurant = Restaurant::create([
+            'name' => 'Main Restaurant',
+            'slug' => 'main-restaurant',
+        ]);
+        $otherRestaurant = Restaurant::create([
+            'name' => 'Second Restaurant',
+            'slug' => 'second-restaurant',
+        ]);
+
+        $firstOrder = Order::create([
+            'restaurant_id' => $restaurant->id,
+            'type' => 'dine_in',
+            'status' => 'pending',
+            'guests' => 2,
+        ]);
+
+        $otherRestaurantFirstOrder = Order::create([
+            'restaurant_id' => $otherRestaurant->id,
+            'type' => 'dine_in',
+            'status' => 'pending',
+            'guests' => 2,
+        ]);
+
+        $this->assertEquals('00001', $firstOrder->number);
+        $this->assertEquals('00001', $otherRestaurantFirstOrder->number);
+    }
 }

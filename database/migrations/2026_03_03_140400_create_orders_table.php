@@ -11,8 +11,8 @@ return new class extends Migration
         // Pedidos
         Schema::create('orders', function (Blueprint $table) {
             $table->id();
-            $table->string('number')->unique(); // #0001, #0002...
             $table->foreignId('restaurant_id')->constrained()->cascadeOnDelete();
+            $table->string('number'); // #0001, #0002... per restaurant
             $table->foreignId('table_id')->nullable()->constrained()->nullOnDelete();
             $table->foreignId('customer_id')->nullable()->constrained()->nullOnDelete();
             $table->foreignId('user_id')->nullable()->constrained()->nullOnDelete(); // Camarero
@@ -27,6 +27,8 @@ return new class extends Migration
             $table->timestamp('opened_at')->nullable();
             $table->timestamp('closed_at')->nullable();
             $table->timestamps();
+
+            $table->unique(['restaurant_id', 'number']);
         });
 
         // Líneas de pedido
