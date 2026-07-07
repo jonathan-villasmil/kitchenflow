@@ -10,8 +10,14 @@ class ZReportController extends Controller
 {
     public function download(CashRegister $register)
     {
+        $user = auth()->user();
+
         // Ensure the user has permission to view Z reports
-        if (!auth()->user()->hasRole(['super_admin', 'manager', 'cajero'])) {
+        if (!$user->hasRole(['super_admin', 'manager', 'cajero'])) {
+            abort(403, 'Unauthorized action.');
+        }
+
+        if ($register->restaurant_id !== $user->restaurant_id && !$user->hasRole('super_admin')) {
             abort(403, 'Unauthorized action.');
         }
 
