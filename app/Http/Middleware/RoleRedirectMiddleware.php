@@ -18,7 +18,7 @@ class RoleRedirectMiddleware
         $user = $request->user();
 
         if ($user && request()->is('admin')) {
-            if ($user->hasRole('camarero')) {
+            if ($user->hasAnyRole(['camarero', 'cajero'])) {
                 return redirect()->route('pos');
             }
             if ($user->hasRole('cocinero')) {

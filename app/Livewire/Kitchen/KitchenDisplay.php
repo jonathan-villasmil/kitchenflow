@@ -19,6 +19,11 @@ class KitchenDisplay extends Component
 
     public function mount()
     {
+        $user = auth()->user();
+        if (!$user || !$user->hasAnyRole(['super_admin', 'manager', 'cocinero'])) {
+            abort(403, 'No tienes permiso para acceder a la pantalla de cocina.');
+        }
+
         $this->station = request()->query('station', 'hot');
     }
 

@@ -7,7 +7,7 @@ use Illuminate\Support\Facades\Route;
 Route::get('/', function () {
     if (auth()->check()) {
         $user = auth()->user();
-        if ($user->hasRole('camarero')) return redirect()->route('pos');
+        if ($user->hasAnyRole(['camarero', 'cajero'])) return redirect()->route('pos');
         if ($user->hasRole('cocinero')) return redirect()->route('kds');
         return redirect('/admin');
     }

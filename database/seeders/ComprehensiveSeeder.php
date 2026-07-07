@@ -28,9 +28,9 @@ class ComprehensiveSeeder extends Seeder
 
         // ─── 1. Usuarios Adicionales ───────────────────────────────────
         $usersData = [
-            ['first_name' => 'Juan', 'last_name' => 'Camarero', 'email' => 'juan@kitchenflow.com', 'role' => 'waiter', 'pin' => '1111'],
-            ['first_name' => 'Sofia', 'last_name' => 'Chef', 'email' => 'sofia@kitchenflow.com', 'role' => 'kitchen', 'pin' => '2222'],
-            ['first_name' => 'Pedro', 'last_name' => 'Cajero', 'email' => 'pedro@kitchenflow.com', 'role' => 'cashier', 'pin' => '3333'],
+            ['first_name' => 'Juan', 'last_name' => 'Camarero', 'email' => 'juan@kitchenflow.com', 'role' => 'camarero', 'pin' => '1111'],
+            ['first_name' => 'Sofia', 'last_name' => 'Chef', 'email' => 'sofia@kitchenflow.com', 'role' => 'cocinero', 'pin' => '2222'],
+            ['first_name' => 'Pedro', 'last_name' => 'Cajero', 'email' => 'pedro@kitchenflow.com', 'role' => 'cajero', 'pin' => '3333'],
         ];
 
         foreach ($usersData as $data) {

@@ -16,9 +16,9 @@ class DatabaseSeeder extends Seeder
         $roles = [
             'super_admin' => 'Super Administrador',
             'manager'     => 'Gerente',
-            'cashier'     => 'Cajero',
-            'waiter'      => 'Camarero',
-            'kitchen'     => 'Cocinero',
+            'cajero'      => 'Cajero',
+            'camarero'    => 'Camarero',
+            'cocinero'    => 'Cocinero',
         ];
 
         foreach ($roles as $slug => $name) {
@@ -71,7 +71,7 @@ class DatabaseSeeder extends Seeder
             'view_reports',
         ]);
 
-        $cashier = Role::findByName('cashier');
+        $cashier = Role::findByName('cajero');
         $cashier->givePermissionTo([
             'view_any_table', 'view_table', 'update_table',
             'view_any_reservation', 'view_reservation', 'create_reservation', 'update_reservation',
@@ -79,7 +79,7 @@ class DatabaseSeeder extends Seeder
             'view_any_dish', 'view_dish',
         ]);
 
-        $waiter = Role::findByName('waiter');
+        $waiter = Role::findByName('camarero');
         $waiter->givePermissionTo([
             'view_any_table', 'view_table', 'update_table',
             'view_any_reservation', 'view_reservation', 'create_reservation', 'update_reservation',
@@ -87,7 +87,7 @@ class DatabaseSeeder extends Seeder
             'view_any_dish', 'view_dish',
         ]);
 
-        $kitchen = Role::findByName('kitchen');
+        $kitchen = Role::findByName('cocinero');
         $kitchen->givePermissionTo([
             'view_kitchen', 'update_kitchen_ticket',
             'view_any_order', 'view_order',

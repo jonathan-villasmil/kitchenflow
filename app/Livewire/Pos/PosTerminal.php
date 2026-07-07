@@ -84,6 +84,10 @@ class PosTerminal extends Component
     public function mount(): void
     {
         $user = auth()->user();
+        if (!$user || !$user->hasAnyRole(['super_admin', 'manager', 'cajero', 'camarero'])) {
+            abort(403, 'No tienes permiso para acceder al TPV.');
+        }
+
         $restaurantId = $user->restaurant_id ?? 1;
         
         $this->selectedCategoryId = MenuCategory::where('restaurant_id', $restaurantId)
@@ -181,8 +185,9 @@ class PosTerminal extends Component
         if ($matchedUser) {
             auth()->login($matchedUser);
             session()->regenerate();
-            
-            return redirect()->route('pos');
+
+            $this->redirectRoute('pos');
+            return;
         } else {
             $this->pinError = 'PIN Incorrecto';
             $this->enteredPin = '';

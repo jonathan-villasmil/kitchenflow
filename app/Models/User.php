@@ -7,6 +7,7 @@ use Filament\Panel;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Foundation\Auth\User as Authenticatable;
+use Illuminate\Http\Exceptions\HttpResponseException;
 use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
 use Spatie\Permission\Traits\HasRoles;
@@ -46,9 +47,20 @@ class User extends Authenticatable implements FilamentUser
 
     public function canAccessPanel(Panel $panel): bool
     {
-        // All authenticated users can access the panel;
-        // Filament resource policies handle fine-grained permissions.
-        return true;
+        if ($this->hasAnyRole(['super_admin', 'manager'])) {
+            return true;
+        }
+
+        // Redirect operational roles instead of returning 403
+        if ($this->hasAnyRole(['camarero', 'cajero'])) {
+            throw new HttpResponseException(redirect()->route('pos'));
+        }
+
+        if ($this->hasRole('cocinero')) {
+            throw new HttpResponseException(redirect()->route('kds'));
+        }
+
+        return false;
     }
 
     public function isSuperAdmin(): bool

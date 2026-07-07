@@ -17,11 +17,12 @@ class PosTerminalTest extends TestCase
     {
         $restaurant = Restaurant::create(['name' => 'Main Restaurant', 'slug' => 'main-restaurant']);
         $user = User::create([
-            'name' => 'Test POS User',
-            'email' => 'pos@kitchenflow.test',
-            'password' => bcrypt('password'),
+            'name'          => 'Test POS User',
+            'email'         => 'pos@kitchenflow.test',
+            'password'      => bcrypt('password'),
             'restaurant_id' => $restaurant->id,
         ]);
+        $user->assignRole('camarero');
 
         Livewire::actingAs($user)
             ->test(PosTerminal::class)
@@ -37,18 +38,21 @@ class PosTerminalTest extends TestCase
     {
         $restaurant = Restaurant::create(['name' => 'Main Restaurant', 'slug' => 'main-restaurant']);
         $manager = User::create([
-            'name' => 'Manager',
-            'email' => 'manager@kitchenflow.test',
-            'password' => bcrypt('password'),
+            'name'          => 'Manager',
+            'email'         => 'manager@kitchenflow.test',
+            'password'      => bcrypt('password'),
             'restaurant_id' => $restaurant->id,
         ]);
+        $manager->assignRole('manager');
+
         $waiter = User::create([
-            'name' => 'Waiter',
-            'email' => 'waiter@kitchenflow.test',
-            'password' => bcrypt('password'),
+            'name'          => 'Waiter',
+            'email'         => 'waiter@kitchenflow.test',
+            'password'      => bcrypt('password'),
             'restaurant_id' => $restaurant->id,
-            'pin' => '1234', // automatically hashed via cast
+            'pin'           => '1234', // automatically hashed via cast
         ]);
+        $waiter->assignRole('camarero');
 
         Livewire::actingAs($manager)
             ->test(PosTerminal::class)
@@ -63,24 +67,26 @@ class PosTerminalTest extends TestCase
     {
         $restaurant = Restaurant::create(['name' => 'Main Restaurant', 'slug' => 'main-restaurant']);
         $manager = User::create([
-            'name' => 'Manager',
-            'email' => 'manager@kitchenflow.test',
-            'password' => bcrypt('password'),
+            'name'          => 'Manager',
+            'email'         => 'manager@kitchenflow.test',
+            'password'      => bcrypt('password'),
             'restaurant_id' => $restaurant->id,
         ]);
+        $manager->assignRole('manager');
 
         // Manually insert raw plain text PIN bypassing Eloquent casts
         \DB::table('users')->insert([
-            'name' => 'Old Waiter',
-            'email' => 'old_waiter@kitchenflow.test',
-            'password' => bcrypt('password'),
+            'name'          => 'Old Waiter',
+            'email'         => 'old_waiter@kitchenflow.test',
+            'password'      => bcrypt('password'),
             'restaurant_id' => $restaurant->id,
-            'pin' => '9999',
-            'created_at' => now(),
-            'updated_at' => now(),
+            'pin'           => '9999',
+            'created_at'    => now(),
+            'updated_at'    => now(),
         ]);
 
         $waiter = User::where('email', 'old_waiter@kitchenflow.test')->first();
+        $waiter->assignRole('camarero');
         $this->assertEquals('9999', $waiter->getRawOriginal('pin')); // verify raw plain text
 
         Livewire::actingAs($manager)
@@ -96,4 +102,5 @@ class PosTerminalTest extends TestCase
         $this->assertNotEquals('9999', $waiter->getRawOriginal('pin'));
         $this->assertTrue(\Hash::check('9999', $waiter->pin));
     }
+
 }
