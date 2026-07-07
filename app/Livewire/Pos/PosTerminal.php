@@ -11,6 +11,7 @@ use App\Models\OrderItem;
 use App\Models\Table;
 use App\Models\Employee;
 use App\Models\Clocking;
+use App\Models\Customer;
 use App\Models\User;
 use App\Events\OrderPaid;
 use Filament\Notifications\Notification;
@@ -81,6 +82,48 @@ class PosTerminal extends Component
     public string $cancellationPin = '';
     public string $cancellationError = '';
 
+    private function restaurantId(): int
+    {
+        return auth()->user()->restaurant_id ?? 1;
+    }
+
+    private function findTableForCurrentRestaurant(int $tableId): ?Table
+    {
+        return Table::where('restaurant_id', $this->restaurantId())->find($tableId);
+    }
+
+    private function findDishForCurrentRestaurant(?int $dishId): ?Dish
+    {
+        if (!$dishId) return null;
+
+        return Dish::with('modifierGroups.modifiers')
+            ->where('restaurant_id', $this->restaurantId())
+            ->find($dishId);
+    }
+
+    private function findOrderForCurrentRestaurant(?int $orderId): ?Order
+    {
+        if (!$orderId) return null;
+
+        return Order::where('restaurant_id', $this->restaurantId())->find($orderId);
+    }
+
+    private function findCustomerForCurrentRestaurant(?int $customerId): ?Customer
+    {
+        if (!$customerId) return null;
+
+        return Customer::where('restaurant_id', $this->restaurantId())->find($customerId);
+    }
+
+    private function activeRegisterForCurrentRestaurant(): ?CashRegister
+    {
+        if (!$this->activeRegister) return null;
+
+        return CashRegister::where('restaurant_id', $this->restaurantId())
+            ->where('status', 'open')
+            ->find($this->activeRegister->id);
+    }
+
     public function mount(): void
     {
         $user = auth()->user();
@@ -88,7 +131,7 @@ class PosTerminal extends Component
             abort(403, 'No tienes permiso para acceder al TPV.');
         }
 
-        $restaurantId = $user->restaurant_id ?? 1;
+        $restaurantId = $this->restaurantId();
         
         $this->selectedCategoryId = MenuCategory::where('restaurant_id', $restaurantId)
             ->orderBy('sort_order')
@@ -99,10 +142,7 @@ class PosTerminal extends Component
 
     private function checkActiveRegister(): void
     {
-        $user = auth()->user();
-        $restaurantId = $user->restaurant_id ?? 1;
-
-        $this->activeRegister = CashRegister::where('restaurant_id', $restaurantId)
+        $this->activeRegister = CashRegister::where('restaurant_id', $this->restaurantId())
             ->where('status', 'open')
             ->first();
 
@@ -196,6 +236,7 @@ class PosTerminal extends Component
 
     public function calculateCloseRegister(): void
     {
+        $this->activeRegister = $this->activeRegisterForCurrentRestaurant();
         if (!$this->activeRegister) return;
 
         $transactions = $this->activeRegister->transactions;
@@ -211,6 +252,7 @@ class PosTerminal extends Component
 
     public function closeRegister(): void
     {
+        $this->activeRegister = $this->activeRegisterForCurrentRestaurant();
         if (!$this->activeRegister) return;
 
         $this->calculateCloseRegister(); // Recalculate just in case
@@ -249,7 +291,7 @@ class PosTerminal extends Component
 
     public function openManualCashModal(string $type): void
     {
-        if (!$this->activeRegister) return;
+        if (!$this->activeRegisterForCurrentRestaurant()) return;
         
         $this->manualCashType = $type;
         $this->manualCashAmount = 0;
@@ -259,6 +301,7 @@ class PosTerminal extends Component
 
     public function submitManualCash(): void
     {
+        $this->activeRegister = $this->activeRegisterForCurrentRestaurant();
         if (!$this->activeRegister || $this->manualCashAmount <= 0) return;
 
         $this->validate([
@@ -283,11 +326,13 @@ class PosTerminal extends Component
     // ── Select a table and open POS ───────────────────────────────────
     public function selectTable(int $tableId): void
     {
+        $table = $this->findTableForCurrentRestaurant($tableId);
+        if (!$table) abort(403, 'Mesa no disponible para este restaurante.');
+
         $this->selectedTableId = $tableId;
-        $table = Table::find($tableId);
 
         // Check if table has an active order
-        $activeOrder = $table?->activeOrder;
+        $activeOrder = $table->activeOrder;
         if ($activeOrder) {
             $this->currentOrderId = $activeOrder->id;
             $this->loadOrderToCart($activeOrder);
@@ -327,7 +372,7 @@ class PosTerminal extends Component
     // ── Add dish to cart ──────────────────────────────────────────────
     public function addToCart(int $dishId): void
     {
-        $dish = Dish::with('modifierGroups.modifiers')->find($dishId);
+        $dish = $this->findDishForCurrentRestaurant($dishId);
         if (!$dish || !$dish->is_available) return;
 
         if ($dish->modifierGroups->count() > 0) {
@@ -361,7 +406,7 @@ class PosTerminal extends Component
 
     public function confirmModifiers(): void
     {
-        $dish = Dish::with('modifierGroups.modifiers')->find($this->selectedDishForModifiers);
+        $dish = $this->findDishForCurrentRestaurant($this->selectedDishForModifiers);
         if (!$dish) return;
 
         // Validation: Check required groups
@@ -497,7 +542,9 @@ class PosTerminal extends Component
 
             // Update DB: Mark as cancelled instead of deleting for audit
             if ($orderItemId) {
-                $item = OrderItem::find($orderItemId);
+                $item = OrderItem::whereHas('order', fn ($query) =>
+                    $query->where('restaurant_id', $this->restaurantId())
+                )->find($orderItemId);
                 if ($item) {
                     $item->update(['status' => 'cancelled']);
                 }
@@ -514,7 +561,7 @@ class PosTerminal extends Component
             // If cart is empty AND the order has no more active items in DB,
             // cancel the order and free the table.
             if (empty($this->cart) && $this->currentOrderId) {
-                $order = Order::find($this->currentOrderId);
+                $order = $this->findOrderForCurrentRestaurant($this->currentOrderId);
                 
                 if ($order) {
                     $activeItemsCount = $order->items()
@@ -530,7 +577,8 @@ class PosTerminal extends Component
 
                         // Free the table
                         if ($this->selectedTableId) {
-                            Table::where('id', $this->selectedTableId)
+                            Table::where('restaurant_id', $this->restaurantId())
+                                ->where('id', $this->selectedTableId)
                                 ->update(['status' => 'available']);
                         }
 
@@ -546,7 +594,7 @@ class PosTerminal extends Component
                 // Still items remaining — just recalculate totals
                 $order?->recalculateTotals();
             } elseif ($this->currentOrderId) {
-                Order::find($this->currentOrderId)?->recalculateTotals();
+                $this->findOrderForCurrentRestaurant($this->currentOrderId)?->recalculateTotals();
             }
 
             session()->flash('success', '✅ Plato anulado correctamente por ' . $manager->name);
@@ -694,6 +742,10 @@ class PosTerminal extends Component
     // ─── CRM / Customer Methods ───────────────────────────────────────
     public function selectCustomer(?int $customerId): void
     {
+        if ($customerId && !$this->findCustomerForCurrentRestaurant($customerId)) {
+            abort(403, 'Cliente no disponible para este restaurante.');
+        }
+
         $this->selectedCustomerId = $customerId;
         $this->showCustomerModal = false;
         $this->searchCustomerQuery = '';
@@ -718,7 +770,7 @@ class PosTerminal extends Component
 
     public function getSelectedCustomerRecordProperty()
     {
-        return $this->selectedCustomerId ? \App\Models\Customer::find($this->selectedCustomerId) : null;
+        return $this->findCustomerForCurrentRestaurant($this->selectedCustomerId);
     }
 
     public function toggleRedeemPoints(): void
@@ -747,9 +799,25 @@ class PosTerminal extends Component
         if (empty($this->cart)) return;
 
         $user = auth()->user();
-        $restaurantId = $user->restaurant_id ?? 1;
+        $restaurantId = $this->restaurantId();
+
+        foreach ($this->cart as $item) {
+            if ($item['order_item_id']) continue;
+
+            if ($course !== null && $item['course'] !== $course) {
+                continue;
+            }
+
+            if (!$this->findDishForCurrentRestaurant($item['dish_id'] ?? null)) {
+                abort(403, 'Plato no disponible para este restaurante.');
+            }
+        }
 
         if (!$this->currentOrderId) {
+            if ($this->selectedTableId && !$this->findTableForCurrentRestaurant($this->selectedTableId)) {
+                abort(403, 'Mesa no disponible para este restaurante.');
+            }
+
             $order = Order::create([
                 'restaurant_id' => $restaurantId,
                 'table_id'      => $this->selectedTableId,
@@ -759,7 +827,8 @@ class PosTerminal extends Component
             ]);
             $this->currentOrderId = $order->id;
         } else {
-            $order = Order::find($this->currentOrderId);
+            $order = $this->findOrderForCurrentRestaurant($this->currentOrderId);
+            if (!$order) abort(403, 'Pedido no disponible para este restaurante.');
         }
 
         $sentCount = 0;
@@ -770,6 +839,9 @@ class PosTerminal extends Component
             if ($course !== null && $item['course'] !== $course) {
                 continue; // Skip items not matching the selected course
             }
+
+            $dish = $this->findDishForCurrentRestaurant($item['dish_id'] ?? null);
+            if (!$dish) abort(403, 'Plato no disponible para este restaurante.');
 
             $orderItem = OrderItem::create([
                 'order_id'   => $order->id,
@@ -805,7 +877,9 @@ class PosTerminal extends Component
 
             // Update table status
             if ($this->selectedTableId) {
-                Table::where('id', $this->selectedTableId)->update(['status' => 'occupied']);
+                Table::where('restaurant_id', $restaurantId)
+                    ->where('id', $this->selectedTableId)
+                    ->update(['status' => 'occupied']);
             }
 
             // Broadcast to KDS (Reverb)
@@ -819,6 +893,7 @@ class PosTerminal extends Component
     public function processPayment(): void
     {
         // Necesitamos caja abierta y al menos algo en el carrito
+        $this->activeRegister = $this->activeRegisterForCurrentRestaurant();
         if (empty($this->cart) || !$this->activeRegister) return;
 
         $this->tipAmount = max(0, (float) $this->tipAmount);
@@ -842,8 +917,17 @@ class PosTerminal extends Component
         $selectedCustomerId = $this->selectedCustomerId;
         $selectedTableId    = $this->selectedTableId;
 
-        $order = Order::find($this->currentOrderId);
+        $order = $this->findOrderForCurrentRestaurant($this->currentOrderId);
         if (!$order) return;
+
+        if ($selectedCustomerId && !$this->findCustomerForCurrentRestaurant($selectedCustomerId)) {
+            abort(403, 'Cliente no disponible para este restaurante.');
+        }
+
+        $selectedTable = $selectedTableId ? $this->findTableForCurrentRestaurant($selectedTableId) : null;
+        if ($selectedTableId && !$selectedTable) {
+            abort(403, 'Mesa no disponible para este restaurante.');
+        }
 
         $order->update([
             'status'          => 'paid',
@@ -863,13 +947,13 @@ class PosTerminal extends Component
                 'payment_method'   => $paymentMethod,
                 'reference_type'   => Order::class,
                 'reference_id'     => $order->id,
-                'notes'            => 'Cobro Mesa ' . ($selectedTableId ? Table::find($selectedTableId)?->number ?? 'Barra' : 'Barra') . ($tipAmount > 0 ? " (Inc. propina €{$tipAmount})" : ''),
+                'notes'            => 'Cobro Mesa ' . ($selectedTable?->number ?? 'Barra') . ($tipAmount > 0 ? " (Inc. propina €{$tipAmount})" : ''),
             ]);
         }
 
         // ─── CRM: Add Loyalty Points ─────────────────────────────────
         if ($selectedCustomerId) {
-            $customer   = \App\Models\Customer::find($selectedCustomerId);
+            $customer   = $this->findCustomerForCurrentRestaurant($selectedCustomerId);
             $restaurant = auth()->user()->restaurant;
 
             if ($customer) {
@@ -895,7 +979,9 @@ class PosTerminal extends Component
 
         // Liberar mesa
         if ($selectedTableId) {
-            Table::where('id', $selectedTableId)->update(['status' => 'available']);
+            Table::where('restaurant_id', $this->restaurantId())
+                ->where('id', $selectedTableId)
+                ->update(['status' => 'available']);
         }
 
         // Descontar inventario automáticamente
@@ -919,7 +1005,7 @@ class PosTerminal extends Component
     public function getActiveDishForModifiersProperty()
     {
         if (!$this->selectedDishForModifiers) return null;
-        return Dish::with('modifierGroups.modifiers')->find($this->selectedDishForModifiers);
+        return $this->findDishForCurrentRestaurant($this->selectedDishForModifiers);
     }
 
     // ── Dishes for current category/search ────────────────────────────
