@@ -8,6 +8,7 @@ use App\Models\MenuCategory;
 use App\Models\Order;
 use App\Models\OrderItem;
 use App\Models\Table;
+use Illuminate\Support\Facades\Log;
 use Livewire\Component;
 
 class DigitalMenu extends Component
@@ -40,6 +41,18 @@ class DigitalMenu extends Component
             if (!$this->findDishForTableRestaurant($item['dish_id'] ?? null)) {
                 abort(403, 'Plato no disponible para esta mesa.');
             }
+        }
+    }
+
+    private function broadcastRealtime(object $event): void
+    {
+        try {
+            event($event);
+        } catch (\Throwable $e) {
+            Log::warning('No se pudo emitir el evento en tiempo real.', [
+                'event' => $event::class,
+                'message' => $e->getMessage(),
+            ]);
         }
     }
 
@@ -300,7 +313,7 @@ class DigitalMenu extends Component
         $this->table->update(['status' => 'occupied']);
 
         // Broadcast to KDS (Reverb) in real-time
-        event(new \App\Events\OrderSentToKitchen($order));
+        $this->broadcastRealtime(new \App\Events\OrderSentToKitchen($order));
 
         $this->cart = [];
         $this->showCart = false;

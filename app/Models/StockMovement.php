@@ -4,6 +4,7 @@ namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
+use Illuminate\Support\Facades\Log;
 
 class StockMovement extends Model
 {
@@ -60,7 +61,14 @@ class StockMovement extends Model
 
                 foreach ($dishes as $dish) {
                     $stock = $dish->calculateStock();
-                    event(new \App\Events\DishStockUpdated($dish, $stock['status'], $stock['portions']));
+                    try {
+                        event(new \App\Events\DishStockUpdated($dish, $stock['status'], $stock['portions']));
+                    } catch (\Throwable $e) {
+                        Log::warning('No se pudo emitir la actualización de stock en tiempo real.', [
+                            'dish_id' => $dish->id,
+                            'message' => $e->getMessage(),
+                        ]);
+                    }
                 }
             }
         });

@@ -15,6 +15,7 @@ use App\Models\Customer;
 use App\Models\User;
 use App\Events\OrderPaid;
 use Filament\Notifications\Notification;
+use Illuminate\Support\Facades\Log;
 use Livewire\Component;
 
 class PosTerminal extends Component
@@ -122,6 +123,18 @@ class PosTerminal extends Component
         return CashRegister::where('restaurant_id', $this->restaurantId())
             ->where('status', 'open')
             ->find($this->activeRegister->id);
+    }
+
+    private function broadcastRealtime(object $event): void
+    {
+        try {
+            event($event);
+        } catch (\Throwable $e) {
+            Log::warning('No se pudo emitir el evento en tiempo real.', [
+                'event' => $event::class,
+                'message' => $e->getMessage(),
+            ]);
+        }
     }
 
     public function mount(): void
@@ -883,7 +896,7 @@ class PosTerminal extends Component
             }
 
             // Broadcast to KDS (Reverb)
-            event(new \App\Events\OrderSentToKitchen($order));
+            $this->broadcastRealtime(new \App\Events\OrderSentToKitchen($order));
 
             session()->flash('success', $course === null ? '✅ Pedido mandado completo' : "✅ Marchando Platos del Curso {$course}");
         }
