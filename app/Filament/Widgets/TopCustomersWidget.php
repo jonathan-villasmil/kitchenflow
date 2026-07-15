@@ -2,6 +2,7 @@
 
 namespace App\Filament\Widgets;
 
+use App\Support\AdminRestaurantContext;
 use Filament\Tables\Table;
 use Filament\Widgets\TableWidget;
 use App\Models\Customer;
@@ -17,7 +18,7 @@ class TopCustomersWidget extends TableWidget
     {
         return $table
             ->query(
-                Customer::query()
+                AdminRestaurantContext::scope(Customer::query())
                     ->where('loyalty_points', '>', 0)
                     ->orderByDesc('loyalty_points')
                     ->limit(5)

@@ -3,6 +3,7 @@
 namespace App\Filament\Widgets;
 
 use App\Models\Order;
+use App\Support\AdminRestaurantContext;
 use Filament\Widgets\StatsOverviewWidget as BaseWidget;
 use Filament\Widgets\StatsOverviewWidget\Stat;
 use Filament\Widgets\Concerns\InteractsWithPageFilters;
@@ -19,7 +20,8 @@ class RevenueStatsWidget extends BaseWidget
         $startDate = $this->filters['startDate'] ?? today()->startOfDay();
         $endDate = $this->filters['endDate'] ?? today()->endOfDay();
 
-        $revenue = Order::whereBetween('created_at', [
+        $revenue = AdminRestaurantContext::scope(Order::query())
+            ->whereBetween('created_at', [
                 Carbon::parse($startDate)->startOfDay(),
                 Carbon::parse($endDate)->endOfDay()
             ])

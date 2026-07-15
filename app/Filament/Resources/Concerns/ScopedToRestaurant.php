@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Concerns;
 
+use App\Support\AdminRestaurantContext;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Facades\Schema;
 
@@ -12,13 +13,15 @@ trait ScopedToRestaurant
         $query = parent::getEloquentQuery();
         $user = auth()->user();
 
-        if (!$user || $user->hasRole('super_admin')) {
+        if (!$user) {
             return $query;
         }
 
-        $restaurantId = $user->restaurant_id;
+        $restaurantId = AdminRestaurantContext::selectedId();
         if (!$restaurantId) {
-            return $query->whereRaw('1 = 0');
+            return $user->hasRole('super_admin')
+                ? $query
+                : $query->whereRaw('1 = 0');
         }
 
         $model = $query->getModel();

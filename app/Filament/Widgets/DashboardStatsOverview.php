@@ -3,6 +3,7 @@
 namespace App\Filament\Widgets;
 
 use App\Models\Order;
+use App\Support\AdminRestaurantContext;
 use Carbon\Carbon;
 use Filament\Widgets\StatsOverviewWidget;
 use Filament\Widgets\StatsOverviewWidget\Stat;
@@ -20,15 +21,19 @@ class DashboardStatsOverview extends StatsOverviewWidget
         $start = Carbon::parse($this->filters['startDate'] ?? today())->startOfDay();
         $end   = Carbon::parse($this->filters['endDate']   ?? today())->endOfDay();
 
-        $revenue = Order::whereBetween('created_at', [$start, $end])
+        $revenue = AdminRestaurantContext::scope(Order::query())
+            ->whereBetween('created_at', [$start, $end])
             ->where('status', 'paid')
             ->sum('total');
 
-        $ordersCount = Order::whereBetween('created_at', [$start, $end])
+        $ordersCount = AdminRestaurantContext::scope(Order::query())
+            ->whereBetween('created_at', [$start, $end])
             ->where('status', 'paid')
             ->count();
 
-        $activeOrders = Order::whereNotIn('status', ['paid', 'cancelled'])->count();
+        $activeOrders = AdminRestaurantContext::scope(Order::query())
+            ->whereNotIn('status', ['paid', 'cancelled'])
+            ->count();
 
         $avgTicket = $ordersCount > 0 ? $revenue / $ordersCount : 0;
 

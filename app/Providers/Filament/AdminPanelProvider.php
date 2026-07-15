@@ -84,6 +84,10 @@ class AdminPanelProvider extends PanelProvider
                 PanelsRenderHook::HEAD_END,
                 fn (): string => Blade::render('<meta name="theme-color" content="#f97316"/><link rel="apple-touch-icon" href="{{ asset(\'pwa-logo.png\') }}"><link rel="manifest" href="{{ asset(\'manifest.json\') }}"> @laravelPwa')
             )
+            ->renderHook(
+                PanelsRenderHook::TOPBAR_END,
+                fn (): string => view('filament.partials.restaurant-context-selector')->render()
+            )
             ->middleware([
                 EncryptCookies::class,
                 AddQueuedCookiesToResponse::class,

@@ -3,6 +3,7 @@
 namespace App\Filament\Widgets;
 
 use App\Models\Order;
+use App\Support\AdminRestaurantContext;
 use Carbon\Carbon;
 use Filament\Widgets\ChartWidget;
 use Livewire\Attributes\On;
@@ -53,7 +54,10 @@ class RevenueChart extends ChartWidget
         if ($groupBy === 'day') {
             for ($i = 0; $i <= $diff; $i++) {
                 $date  = $start->copy()->addDays($i);
-                $total = Order::whereDate('closed_at', $date)->where('status', 'paid')->sum('total');
+                $total = AdminRestaurantContext::scope(Order::query())
+                    ->whereDate('closed_at', $date)
+                    ->where('status', 'paid')
+                    ->sum('total');
                 $data->push(round($total, 2));
                 $labels->push($date->format('d M'));
             }
@@ -61,7 +65,8 @@ class RevenueChart extends ChartWidget
             $cursor = $start->copy()->startOfWeek();
             while ($cursor->lte($end)) {
                 $weekEnd = $cursor->copy()->endOfWeek();
-                $total = Order::whereBetween('closed_at', [$cursor, $weekEnd->min($end)])
+                $total = AdminRestaurantContext::scope(Order::query())
+                    ->whereBetween('closed_at', [$cursor, $weekEnd->min($end)])
                     ->where('status', 'paid')->sum('total');
                 $data->push(round($total, 2));
                 $labels->push('Sem ' . $cursor->format('d/m'));
@@ -71,7 +76,8 @@ class RevenueChart extends ChartWidget
             $cursor = $start->copy()->startOfMonth();
             while ($cursor->lte($end)) {
                 $monthEnd = $cursor->copy()->endOfMonth();
-                $total = Order::whereBetween('closed_at', [$cursor, $monthEnd->min($end)])
+                $total = AdminRestaurantContext::scope(Order::query())
+                    ->whereBetween('closed_at', [$cursor, $monthEnd->min($end)])
                     ->where('status', 'paid')->sum('total');
                 $data->push(round($total, 2));
                 $labels->push($cursor->format('M Y'));

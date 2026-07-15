@@ -7,6 +7,7 @@ use App\Filament\Resources\Concerns\RestaurantFormScoping;
 use App\Filament\Resources\Customers\CustomerResource;
 use App\Filament\Resources\Modifiers\ModifierResource;
 use App\Filament\Resources\RestaurantResource;
+use App\Support\AdminRestaurantContext;
 use App\Models\Clocking;
 use App\Models\Customer;
 use App\Models\Employee;
@@ -135,6 +136,70 @@ class FilamentRestaurantScopeTest extends TestCase
 
         $this->assertTrue(CustomerResource::getEloquentQuery()->whereKey($ownCustomer->id)->exists());
         $this->assertTrue(CustomerResource::getEloquentQuery()->whereKey($foreignCustomer->id)->exists());
+    }
+
+    public function test_super_admin_can_scope_admin_panel_to_selected_restaurant(): void
+    {
+        [$restaurant, $otherRestaurant] = $this->makeTenantScenario();
+
+        $superAdmin = User::create([
+            'name'          => 'Super Admin Context',
+            'email'         => 'super-admin-context@kitchenflow.test',
+            'password'      => bcrypt('password'),
+            'restaurant_id' => $restaurant->id,
+        ]);
+        $superAdmin->assignRole('super_admin');
+
+        $ownCustomer = Customer::create([
+            'restaurant_id' => $restaurant->id,
+            'name'          => 'Cliente A',
+        ]);
+        $selectedCustomer = Customer::create([
+            'restaurant_id' => $otherRestaurant->id,
+            'name'          => 'Cliente B',
+        ]);
+
+        $this->actingAs($superAdmin)
+            ->withSession([AdminRestaurantContext::SESSION_KEY => $otherRestaurant->id]);
+
+        $this->assertFalse(CustomerResource::getEloquentQuery()->whereKey($ownCustomer->id)->exists());
+        $this->assertTrue(CustomerResource::getEloquentQuery()->whereKey($selectedCustomer->id)->exists());
+    }
+
+    public function test_super_admin_can_update_and_clear_restaurant_context(): void
+    {
+        [$restaurant, $otherRestaurant] = $this->makeTenantScenario();
+
+        $superAdmin = User::create([
+            'name'          => 'Super Admin Selector',
+            'email'         => 'super-admin-selector@kitchenflow.test',
+            'password'      => bcrypt('password'),
+            'restaurant_id' => $restaurant->id,
+        ]);
+        $superAdmin->assignRole('super_admin');
+
+        $this->actingAs($superAdmin)
+            ->post(route('admin.restaurant-context.update'), ['restaurant_id' => $otherRestaurant->id])
+            ->assertRedirect();
+
+        $this->assertSame($otherRestaurant->id, session(AdminRestaurantContext::SESSION_KEY));
+
+        $this->post(route('admin.restaurant-context.update'), ['restaurant_id' => null])
+            ->assertRedirect();
+
+        $this->assertNull(session(AdminRestaurantContext::SESSION_KEY));
+    }
+
+    public function test_manager_cannot_update_admin_restaurant_context(): void
+    {
+        [$restaurant, $otherRestaurant, $manager] = $this->makeTenantScenario();
+
+        $this->actingAs($manager)
+            ->post(route('admin.restaurant-context.update'), ['restaurant_id' => $otherRestaurant->id])
+            ->assertForbidden();
+
+        $this->assertNull(session(AdminRestaurantContext::SESSION_KEY));
+        $this->assertSame($restaurant->id, AdminRestaurantContext::selectedId());
     }
 
     public function test_manager_form_restaurant_options_are_limited_to_own_restaurant(): void

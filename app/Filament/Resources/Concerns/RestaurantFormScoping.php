@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\Concerns;
 
 use App\Models\Restaurant;
+use App\Support\AdminRestaurantContext;
 use Filament\Forms\Components\Select;
 use Illuminate\Database\Eloquent\Builder;
 use Illuminate\Support\Collection;
@@ -11,12 +12,16 @@ class RestaurantFormScoping
 {
     public static function canChooseRestaurant(): bool
     {
-        return (bool) auth()->user()?->hasRole('super_admin');
+        return AdminRestaurantContext::canChooseRestaurant();
     }
 
     public static function currentRestaurantId(): ?int
     {
-        return auth()->user()?->restaurant_id;
+        if (self::canChooseRestaurant()) {
+            return AdminRestaurantContext::selectedId();
+        }
+
+        return AdminRestaurantContext::selectedId() ?? auth()->user()?->restaurant_id;
     }
 
     public static function selectedRestaurantId(mixed $state = null): ?int
@@ -25,7 +30,7 @@ class RestaurantFormScoping
             return self::currentRestaurantId();
         }
 
-        return filled($state) ? (int) $state : self::currentRestaurantId();
+        return filled($state) ? (int) $state : AdminRestaurantContext::selectedId();
     }
 
     public static function restaurantOptions(): Collection
@@ -56,7 +61,7 @@ class RestaurantFormScoping
 
     public static function scopeToRestaurant(Builder $query, mixed $restaurantId = null, string $column = 'restaurant_id'): Builder
     {
-        if (self::canChooseRestaurant() && blank($restaurantId)) {
+        if (self::canChooseRestaurant() && blank($restaurantId) && ! AdminRestaurantContext::selectedId()) {
             return $query;
         }
 

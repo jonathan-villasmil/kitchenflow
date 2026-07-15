@@ -2,6 +2,7 @@
 
 namespace App\Filament\Widgets;
 
+use App\Support\AdminRestaurantContext;
 use Carbon\Carbon;
 use Filament\Tables\Table;
 use Filament\Widgets\TableWidget;
@@ -36,7 +37,7 @@ class TodayOrdersList extends TableWidget
         $end   = Carbon::parse($this->endDate   ?: today())->endOfDay();
 
         return $table
-            ->query(fn (): Builder => \App\Models\Order::query()
+            ->query(fn (): Builder => AdminRestaurantContext::scope(\App\Models\Order::query())
                 ->whereBetween('created_at', [$start, $end])
                 ->latest()
             )

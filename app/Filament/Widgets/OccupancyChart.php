@@ -3,6 +3,7 @@
 namespace App\Filament\Widgets;
 
 use App\Models\Order;
+use App\Support\AdminRestaurantContext;
 use Filament\Widgets\ChartWidget;
 use Filament\Widgets\Concerns\InteractsWithPageFilters;
 use Illuminate\Support\Facades\DB;
@@ -21,7 +22,8 @@ class OccupancyChart extends ChartWidget
         $startDate = $this->filters['startDate'] ?? today()->startOfDay();
         $endDate = $this->filters['endDate'] ?? today()->endOfDay();
 
-        $orders = Order::select(
+        $orders = AdminRestaurantContext::scope(Order::query())
+            ->select(
                 DB::raw('HOUR(created_at) as hour'),
                 DB::raw('COUNT(*) as count')
             )

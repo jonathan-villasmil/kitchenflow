@@ -3,6 +3,7 @@
 namespace App\Filament\Widgets;
 
 use App\Models\OrderItem;
+use App\Support\AdminRestaurantContext;
 use Filament\Widgets\ChartWidget;
 use Filament\Widgets\Concerns\InteractsWithPageFilters;
 use Illuminate\Support\Facades\DB;
@@ -22,7 +23,8 @@ class WaitTimesChart extends ChartWidget
 
         // Get average wait time per hour for the selected period
         // Ignore anomalies > 120 minutes
-        $waitTimes = OrderItem::select(
+        $waitTimes = AdminRestaurantContext::scopeThroughOrder(OrderItem::query())
+            ->select(
                 DB::raw('HOUR(sent_at) as hour'),
                 DB::raw('AVG(TIMESTAMPDIFF(MINUTE, sent_at, ready_at)) as avg_wait')
             )

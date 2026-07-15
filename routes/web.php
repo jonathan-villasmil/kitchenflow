@@ -2,6 +2,7 @@
 
 use App\Livewire\Kitchen\KitchenDisplay;
 use App\Livewire\Pos\PosTerminal;
+use App\Http\Controllers\AdminRestaurantContextController;
 use Illuminate\Support\Facades\Route;
 
 Route::get('/', function () {
@@ -35,4 +36,7 @@ Route::middleware(['auth', 'verified'])->group(function () {
         ->name('pos.receipt');
 
     Route::get('/ayuda', [\App\Http\Controllers\HelpController::class, 'index'])->name('help');
+
+    Route::post('/admin/restaurant-context', [AdminRestaurantContextController::class, 'update'])
+        ->name('admin.restaurant-context.update');
 });

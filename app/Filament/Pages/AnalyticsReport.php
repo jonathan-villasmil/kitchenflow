@@ -2,6 +2,7 @@
 
 namespace App\Filament\Pages;
 
+use App\Support\AdminRestaurantContext;
 use Carbon\Carbon;
 use Filament\Pages\Page;
 
@@ -79,17 +80,21 @@ class AnalyticsReport extends Page
                     $start = Carbon::parse($this->startDate)->startOfDay();
                     $end   = Carbon::parse($this->endDate)->endOfDay();
 
-                    $revenue = \App\Models\Order::whereBetween('closed_at', [$start, $end])
+                    $revenue = AdminRestaurantContext::scope(\App\Models\Order::query())
+                        ->whereBetween('closed_at', [$start, $end])
                         ->where('status', 'paid')->sum('total');
 
-                    $activeOrders   = \App\Models\Order::whereNotIn('status', ['paid', 'cancelled'])->count();
-                    $totalCustomers = \App\Models\Customer::count();
+                    $activeOrders = AdminRestaurantContext::scope(\App\Models\Order::query())
+                        ->whereNotIn('status', ['paid', 'cancelled'])
+                        ->count();
+                    $totalCustomers = AdminRestaurantContext::scope(\App\Models\Customer::query())->count();
 
-                    $topDishes = \App\Models\OrderItem::select('dish_id', \Illuminate\Support\Facades\DB::raw('SUM(quantity) as total_sold'))
+                    $topDishes = AdminRestaurantContext::scopeThroughOrder(\App\Models\OrderItem::query())
+                        ->select('dish_id', \Illuminate\Support\Facades\DB::raw('SUM(quantity) as total_sold'))
                         ->whereBetween('created_at', [$start, $end])
                         ->groupBy('dish_id')->orderByDesc('total_sold')->take(5)->with('dish')->get();
 
-                    $orders = \App\Models\Order::with('customer')
+                    $orders = AdminRestaurantContext::scope(\App\Models\Order::with('customer'))
                         ->whereBetween('created_at', [$start, $end])
                         ->orderBy('created_at', 'desc')->get();
 

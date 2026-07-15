@@ -3,6 +3,7 @@
 namespace App\Filament\Widgets;
 
 use App\Models\OrderItem;
+use App\Support\AdminRestaurantContext;
 use Carbon\Carbon;
 use Filament\Widgets\ChartWidget;
 use Illuminate\Support\Facades\DB;
@@ -34,7 +35,8 @@ class TopDishesChart extends ChartWidget
         $start = Carbon::parse($this->startDate ?: today())->startOfDay();
         $end   = Carbon::parse($this->endDate   ?: today())->endOfDay();
 
-        $topDishes = OrderItem::select('name', DB::raw('SUM(quantity) as total_sold'), DB::raw('SUM(total) as total_revenue'))
+        $topDishes = AdminRestaurantContext::scopeThroughOrder(OrderItem::query())
+            ->select('name', DB::raw('SUM(quantity) as total_sold'), DB::raw('SUM(total) as total_revenue'))
             ->whereBetween('created_at', [$start, $end])
             ->where('status', '!=', 'cancelled')
             ->groupBy('name')
