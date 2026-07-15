@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\InventoryItems;
 
 use App\Filament\Resources\Concerns\ScopedToRestaurant;
+use App\Filament\Resources\Concerns\RestaurantFormScoping;
 use App\Filament\Resources\InventoryItems\Pages\CreateInventoryItem;
 use App\Filament\Resources\InventoryItems\Pages\EditInventoryItem;
 use App\Filament\Resources\InventoryItems\Pages\ListInventoryItems;
@@ -47,7 +48,9 @@ class InventoryItemResource extends Resource
                             ->columnSpanFull(),
 
                         Forms\Components\Select::make('inventory_category_id')
-                            ->relationship('category', 'name')
+                            ->relationship('category', 'name',
+                                modifyQueryUsing: fn (Builder $query) => RestaurantFormScoping::scopeToRestaurant($query)
+                            )
                             ->label('Categoría')
                             ->searchable()
                             ->preload()
@@ -148,7 +151,9 @@ class InventoryItemResource extends Resource
             ])
             ->filters([
                 Tables\Filters\SelectFilter::make('inventory_category_id')
-                    ->relationship('category', 'name')
+                    ->relationship('category', 'name',
+                        modifyQueryUsing: fn (Builder $query) => RestaurantFormScoping::scopeToRestaurant($query)
+                    )
                     ->label('Categoría'),
                     
                 Tables\Filters\Filter::make('low_stock')

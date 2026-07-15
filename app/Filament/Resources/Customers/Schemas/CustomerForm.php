@@ -2,9 +2,10 @@
 
 namespace App\Filament\Resources\Customers\Schemas;
 
+use App\Filament\Resources\Concerns\RestaurantFormScoping;
 use Filament\Forms\Components\DatePicker;
-use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Textarea;
+use Filament\Forms\Components\TextInput;
 use Filament\Schemas\Schema;
 
 class CustomerForm
@@ -13,9 +14,7 @@ class CustomerForm
     {
         return $schema
             ->components([
-                TextInput::make('restaurant_id')
-                    ->required()
-                    ->numeric(),
+                RestaurantFormScoping::restaurantSelect(),
                 TextInput::make('name')
                     ->required(),
                 TextInput::make('email')

@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\InventoryCategories;
 
 use App\Filament\Resources\Concerns\ScopedToRestaurant;
+use App\Filament\Resources\Concerns\RestaurantFormScoping;
 use App\Filament\Resources\InventoryCategories\Pages\CreateInventoryCategory;
 use App\Filament\Resources\InventoryCategories\Pages\EditInventoryCategory;
 use App\Filament\Resources\InventoryCategories\Pages\ListInventoryCategories;
@@ -30,10 +31,7 @@ class InventoryCategoryResource extends Resource
             ->components([
                 \Filament\Schemas\Components\Section::make('General')
                     ->schema([
-                        Forms\Components\Select::make('restaurant_id')
-                            ->relationship('restaurant', 'name')
-                            ->required()
-                            ->default(fn () => auth()->user()->restaurant_id ?? 1),
+                        RestaurantFormScoping::restaurantSelect(),
                         Forms\Components\TextInput::make('name')
                             ->label('Nombre')
                             ->required()

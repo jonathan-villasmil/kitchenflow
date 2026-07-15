@@ -2,6 +2,10 @@
 
 namespace App\Filament\Resources\Orders\Schemas;
 
+use App\Filament\Resources\Concerns\RestaurantFormScoping;
+use App\Models\Customer;
+use App\Models\Table;
+use App\Models\User;
 use Filament\Forms\Components\DateTimePicker;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
@@ -16,19 +20,29 @@ class OrderForm
             ->components([
                 TextInput::make('number')
                     ->required(),
-                Select::make('restaurant_id')
-                    ->relationship('restaurant', 'name')
-                    ->required(),
+                RestaurantFormScoping::restaurantSelect(),
                 Select::make('table_id')
-                    ->relationship('table', 'id'),
+                    ->options(fn ($get) =>
+                        Table::where('restaurant_id', RestaurantFormScoping::selectedRestaurantId($get('restaurant_id')))
+                            ->pluck('number', 'id')
+                    ),
                 Select::make('customer_id')
                     ->label('Cliente Asociado')
-                    ->relationship('customer', 'name')
+                    ->options(fn ($get) =>
+                        Customer::where('restaurant_id', RestaurantFormScoping::selectedRestaurantId($get('restaurant_id')))
+                            ->pluck('name', 'id')
+                    )
                     ->searchable()
                     ->preload()
                     ->nullable(),
-                TextInput::make('user_id')
-                    ->numeric(),
+                Select::make('user_id')
+                    ->label('Usuario')
+                    ->options(fn ($get) =>
+                        User::where('restaurant_id', RestaurantFormScoping::selectedRestaurantId($get('restaurant_id')))
+                            ->pluck('name', 'id')
+                    )
+                    ->searchable()
+                    ->nullable(),
                 Select::make('type')
                     ->options(['dine_in' => 'Dine in', 'takeaway' => 'Takeaway', 'delivery' => 'Delivery'])
                     ->default('dine_in')

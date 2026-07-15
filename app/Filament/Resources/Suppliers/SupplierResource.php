@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\Suppliers;
 
 use App\Filament\Resources\Concerns\ScopedToRestaurant;
+use App\Filament\Resources\Concerns\RestaurantFormScoping;
 use App\Filament\Resources\Suppliers\Pages\CreateSupplier;
 use App\Filament\Resources\Suppliers\Pages\EditSupplier;
 use App\Filament\Resources\Suppliers\Pages\ListSuppliers;
@@ -30,10 +31,7 @@ class SupplierResource extends Resource
             ->components([
                 \Filament\Schemas\Components\Section::make('Información del Proveedor')
                     ->schema([
-                        Forms\Components\Select::make('restaurant_id')
-                            ->relationship('restaurant', 'name')
-                            ->required()
-                            ->default(fn () => auth()->user()->restaurant_id ?? 1)
+                        RestaurantFormScoping::restaurantSelect()
                             ->columnSpanFull(),
                         Forms\Components\TextInput::make('name')
                             ->label('Nombre Empresa')

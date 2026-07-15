@@ -3,6 +3,7 @@
 namespace Tests\Feature;
 
 use App\Filament\Resources\Clockings\ClockingResource;
+use App\Filament\Resources\Concerns\RestaurantFormScoping;
 use App\Filament\Resources\Customers\CustomerResource;
 use App\Filament\Resources\Modifiers\ModifierResource;
 use App\Filament\Resources\RestaurantResource;
@@ -134,6 +135,50 @@ class FilamentRestaurantScopeTest extends TestCase
 
         $this->assertTrue(CustomerResource::getEloquentQuery()->whereKey($ownCustomer->id)->exists());
         $this->assertTrue(CustomerResource::getEloquentQuery()->whereKey($foreignCustomer->id)->exists());
+    }
+
+    public function test_manager_form_restaurant_options_are_limited_to_own_restaurant(): void
+    {
+        [$restaurant, $otherRestaurant, $manager] = $this->makeTenantScenario();
+
+        $this->actingAs($manager);
+
+        $options = RestaurantFormScoping::restaurantOptions();
+
+        $this->assertTrue($options->has($restaurant->id));
+        $this->assertFalse($options->has($otherRestaurant->id));
+    }
+
+    public function test_manager_form_data_forces_own_restaurant(): void
+    {
+        [$restaurant, $otherRestaurant, $manager] = $this->makeTenantScenario();
+
+        $this->actingAs($manager);
+
+        $data = RestaurantFormScoping::forceRestaurantOnFormData([
+            'restaurant_id' => $otherRestaurant->id,
+            'name' => 'Dato manipulado',
+        ]);
+
+        $this->assertSame($restaurant->id, $data['restaurant_id']);
+    }
+
+    public function test_super_admin_form_relationship_scope_is_unrestricted_without_selected_restaurant(): void
+    {
+        [$restaurant, $otherRestaurant] = $this->makeTenantScenario();
+
+        $superAdmin = User::create([
+            'name'          => 'Super Admin',
+            'email'         => 'super-admin-form@kitchenflow.test',
+            'password'      => bcrypt('password'),
+            'restaurant_id' => $restaurant->id,
+        ]);
+        $superAdmin->assignRole('super_admin');
+
+        $this->actingAs($superAdmin);
+
+        $this->assertTrue(RestaurantFormScoping::scopeToRestaurant(Restaurant::query())->whereKey($restaurant->id)->exists());
+        $this->assertTrue(RestaurantFormScoping::scopeToRestaurant(Restaurant::query())->whereKey($otherRestaurant->id)->exists());
     }
 
     private function makeTenantScenario(): array

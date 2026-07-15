@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\Shifts;
 
 use App\Filament\Resources\Concerns\ScopedToRestaurant;
+use App\Filament\Resources\Concerns\RestaurantFormScoping;
 use App\Filament\Resources\Shifts\Pages\CreateShift;
 use App\Filament\Resources\Shifts\Pages\EditShift;
 use App\Filament\Resources\Shifts\Pages\ListShifts;
@@ -12,6 +13,7 @@ use Filament\Schemas\Schema;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
 
 class ShiftResource extends Resource
 {
@@ -34,7 +36,9 @@ class ShiftResource extends Resource
                             ->default(fn () => auth()->user()->restaurant_id ?? 1),
 
                         Forms\Components\Select::make('employee_id')
-                            ->relationship('employee', 'first_name') // Needs custom getter ideally, but valid for DB
+                            ->relationship('employee', 'first_name',
+                                modifyQueryUsing: fn (Builder $query) => RestaurantFormScoping::scopeToRestaurant($query)
+                            )
                             ->getOptionLabelFromRecordUsing(fn ($record) => "{$record->first_name} {$record->last_name}")
                             ->label('Empleado')
                             ->searchable()
@@ -125,7 +129,9 @@ class ShiftResource extends Resource
             ->defaultSort('date', 'desc')
             ->filters([
                 Tables\Filters\SelectFilter::make('employee_id')
-                    ->relationship('employee', 'first_name')
+                    ->relationship('employee', 'first_name',
+                        modifyQueryUsing: fn (Builder $query) => RestaurantFormScoping::scopeToRestaurant($query)
+                    )
                     ->label('Empleado')
                     ->searchable(),
             ])

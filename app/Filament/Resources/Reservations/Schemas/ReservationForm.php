@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Reservations\Schemas;
 
+use App\Filament\Resources\Concerns\RestaurantFormScoping;
 use App\Models\Table;
 use App\Models\Customer;
 use Filament\Forms\Components\DateTimePicker;
@@ -23,7 +24,10 @@ class ReservationForm
                         ->schema([
                             Select::make('customer_id')
                                 ->label('Cliente registrado')
-                                ->relationship('customer', 'name')
+                                ->options(fn ($get) =>
+                                    Customer::where('restaurant_id', RestaurantFormScoping::selectedRestaurantId($get('restaurant_id')))
+                                        ->pluck('name', 'id')
+                                )
                                 ->searchable()
                                 ->placeholder('Seleccionar cliente o rellenar abajo')
                                 ->nullable(),
@@ -48,12 +52,7 @@ class ReservationForm
 
                     Section::make('Detalles de la reserva')
                         ->schema([
-                            Select::make('restaurant_id')
-                                ->label('Restaurante')
-                                ->relationship('restaurant', 'name')
-                                ->required()
-                                ->searchable()
-                                ->preload(),
+                            RestaurantFormScoping::restaurantSelect(),
 
                             Grid::make(2)->schema([
                                 DateTimePicker::make('reserved_at')
@@ -73,8 +72,9 @@ class ReservationForm
                             Grid::make(2)->schema([
                                 Select::make('table_id')
                                     ->label('Mesa asignada')
-                                    ->options(
-                                        Table::where('status', 'available')
+                                    ->options(fn ($get) =>
+                                        Table::where('restaurant_id', RestaurantFormScoping::selectedRestaurantId($get('restaurant_id')))
+                                            ->where('status', 'available')
                                             ->get()
                                             ->mapWithKeys(fn ($t) => [$t->id => "Mesa {$t->number} ({$t->capacity} pax)"])
                                     )

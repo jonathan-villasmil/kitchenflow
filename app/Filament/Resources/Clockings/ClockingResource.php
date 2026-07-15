@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\Clockings;
 
 use App\Filament\Resources\Concerns\ScopedToRestaurant;
+use App\Filament\Resources\Concerns\RestaurantFormScoping;
 use App\Filament\Resources\Clockings\Pages\CreateClocking;
 use App\Filament\Resources\Clockings\Pages\EditClocking;
 use App\Filament\Resources\Clockings\Pages\ListClockings;
@@ -12,6 +13,7 @@ use Filament\Schemas\Schema;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
 
 class ClockingResource extends Resource
 {
@@ -32,7 +34,9 @@ class ClockingResource extends Resource
                 \Filament\Schemas\Components\Section::make('Registro de Horas Manual')
                     ->schema([
                         Forms\Components\Select::make('employee_id')
-                            ->relationship('employee', 'first_name')
+                            ->relationship('employee', 'first_name',
+                                modifyQueryUsing: fn (Builder $query) => RestaurantFormScoping::scopeToRestaurant($query)
+                            )
                             ->getOptionLabelFromRecordUsing(fn ($record) => "{$record->first_name} {$record->last_name}")
                             ->label('Empleado')
                             ->searchable()
@@ -98,7 +102,9 @@ class ClockingResource extends Resource
             ->defaultSort('clocked_in_at', 'desc')
             ->filters([
                 Tables\Filters\SelectFilter::make('employee_id')
-                    ->relationship('employee', 'first_name')
+                    ->relationship('employee', 'first_name',
+                        modifyQueryUsing: fn (Builder $query) => RestaurantFormScoping::scopeToRestaurant($query)
+                    )
                     ->label('Empleado')
                     ->searchable(),
                 Tables\Filters\Filter::make('active_clockings')

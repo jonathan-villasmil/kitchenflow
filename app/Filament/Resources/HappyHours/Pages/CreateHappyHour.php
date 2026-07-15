@@ -2,10 +2,13 @@
 
 namespace App\Filament\Resources\HappyHours\Pages;
 
+use App\Filament\Resources\Concerns\ForcesRestaurantFormData;
 use App\Filament\Resources\HappyHours\HappyHourResource;
 use Filament\Resources\Pages\CreateRecord;
 
 class CreateHappyHour extends CreateRecord
 {
+    use ForcesRestaurantFormData;
+
     protected static string $resource = HappyHourResource::class;
 }

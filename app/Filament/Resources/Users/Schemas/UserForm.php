@@ -2,6 +2,8 @@
 
 namespace App\Filament\Resources\Users\Schemas;
 
+use App\Filament\Resources\Concerns\RestaurantFormScoping;
+use Illuminate\Database\Eloquent\Builder;
 use Filament\Forms\Components\DateTimePicker;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
@@ -46,16 +48,16 @@ class UserForm
 
                         Select::make('roles')
                             ->label('Rol del Sistema (Permisos)')
-                            ->relationship('roles', 'name')
+                            ->relationship('roles', 'name',
+                                modifyQueryUsing: fn (Builder $query) => RestaurantFormScoping::canChooseRestaurant()
+                                    ? $query
+                                    : $query->where('name', '!=', 'super_admin')
+                            )
                             ->preload()
                             ->searchable()
                             ->required(),
 
-                        Select::make('restaurant_id')
-                            ->label('Restaurante')
-                            ->relationship('restaurant', 'name')
-                            ->default(1)
-                            ->required(),
+                        RestaurantFormScoping::restaurantSelect(),
                     ])->columns(2),
             ]);
     }

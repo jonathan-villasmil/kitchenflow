@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\Tables\Schemas;
 
+use App\Filament\Resources\Concerns\RestaurantFormScoping;
 use App\Models\Zone;
 use Filament\Schemas\Components\Grid;
 use Filament\Schemas\Components\Section;
@@ -21,18 +22,12 @@ class TableForm
                         ->columnSpan(2)
                         ->schema([
                             Grid::make(2)->schema([
-                                Select::make('restaurant_id')
-                                    ->label('Restaurante')
-                                    ->relationship('restaurant', 'name')
-                                    ->required()
-                                    ->searchable()
-                                    ->preload()
-                                    ->live(),
+                                RestaurantFormScoping::restaurantSelect(),
 
                                 Select::make('zone_id')
                                     ->label('Zona / Sala')
                                     ->options(fn ($get) =>
-                                        Zone::where('restaurant_id', $get('restaurant_id'))
+                                        Zone::where('restaurant_id', RestaurantFormScoping::selectedRestaurantId($get('restaurant_id')))
                                             ->pluck('name', 'id')
                                     )
                                     ->searchable()

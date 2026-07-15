@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\MenuCategories\Schemas;
 
+use App\Filament\Resources\Concerns\RestaurantFormScoping;
 use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
@@ -14,10 +15,7 @@ class MenuCategoryForm
     {
         return $schema
             ->components([
-                Select::make('restaurant_id')
-                    ->relationship('restaurant', 'name')
-                    ->label('Restaurante')
-                    ->required(),
+                RestaurantFormScoping::restaurantSelect(),
                 TextInput::make('name')
                     ->label('Nombre')
                     ->required(),

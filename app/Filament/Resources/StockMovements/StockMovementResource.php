@@ -3,16 +3,16 @@
 namespace App\Filament\Resources\StockMovements;
 
 use App\Filament\Resources\Concerns\ScopedToRestaurant;
+use App\Filament\Resources\Concerns\RestaurantFormScoping;
 use App\Filament\Resources\StockMovements\Pages\CreateStockMovement;
 use App\Filament\Resources\StockMovements\Pages\ListStockMovements;
 use App\Models\StockMovement;
-use App\Models\InventoryItem;
 use Filament\Forms;
 use Filament\Schemas\Schema;
 use Filament\Resources\Resource;
 use Filament\Tables;
 use Filament\Tables\Table;
-use Illuminate\Database\Eloquent\Model;
+use Illuminate\Database\Eloquent\Builder;
 
 class StockMovementResource extends Resource
 {
@@ -50,7 +50,9 @@ class StockMovementResource extends Resource
                             ->live(),
 
                         Forms\Components\Select::make('inventory_item_id')
-                            ->relationship('item', 'name')
+                            ->relationship('item', 'name',
+                                modifyQueryUsing: fn (Builder $query) => RestaurantFormScoping::scopeToRestaurant($query)
+                            )
                             ->label('Artículo')
                             ->searchable()
                             ->preload()
@@ -65,7 +67,9 @@ class StockMovementResource extends Resource
                             ->helperText('Usar valores positivos. El sistema restará automáticamente si es salida.'),
 
                         Forms\Components\Select::make('supplier_id')
-                            ->relationship('supplier', 'name')
+                            ->relationship('supplier', 'name',
+                                modifyQueryUsing: fn (Builder $query) => RestaurantFormScoping::scopeToRestaurant($query)
+                            )
                             ->label('Proveedor')
                             ->searchable()
                             ->preload()
@@ -142,7 +146,9 @@ class StockMovementResource extends Resource
                     ])
                     ->label('Tipo'),
                 Tables\Filters\SelectFilter::make('inventory_item_id')
-                    ->relationship('item', 'name')
+                    ->relationship('item', 'name',
+                        modifyQueryUsing: fn (Builder $query) => RestaurantFormScoping::scopeToRestaurant($query)
+                    )
                     ->label('Artículo')
                     ->searchable(),
             ])

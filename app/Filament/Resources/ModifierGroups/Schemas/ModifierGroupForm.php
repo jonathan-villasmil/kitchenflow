@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\ModifierGroups\Schemas;
 
+use App\Filament\Resources\Concerns\RestaurantFormScoping;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
 use Filament\Forms\Components\Toggle;
@@ -14,11 +15,7 @@ class ModifierGroupForm
     {
         return $schema
             ->components([
-                Select::make('restaurant_id')
-                    ->relationship('restaurant', 'name')
-                    ->label('Restaurante')
-                    ->default(auth()->user()->restaurant_id ?? 1)
-                    ->required(),
+                RestaurantFormScoping::restaurantSelect(),
                 TextInput::make('name')
                     ->label('Nombre del Grupo (Ej: Extras, Punto de Carne)')
                     ->required(),

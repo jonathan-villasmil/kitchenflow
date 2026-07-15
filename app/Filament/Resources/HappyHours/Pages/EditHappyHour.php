@@ -2,12 +2,15 @@
 
 namespace App\Filament\Resources\HappyHours\Pages;
 
+use App\Filament\Resources\Concerns\ForcesRestaurantFormData;
 use App\Filament\Resources\HappyHours\HappyHourResource;
 use Filament\Actions\DeleteAction;
 use Filament\Resources\Pages\EditRecord;
 
 class EditHappyHour extends EditRecord
 {
+    use ForcesRestaurantFormData;
+
     protected static string $resource = HappyHourResource::class;
 
     protected function getHeaderActions(): array

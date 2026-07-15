@@ -2,10 +2,12 @@
 
 namespace App\Filament\Resources\Clockings\Tables;
 
+use App\Filament\Resources\Concerns\RestaurantFormScoping;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteBulkAction;
 use Filament\Actions\EditAction;
 use Filament\Tables\Table;
+use Illuminate\Database\Eloquent\Builder;
 
 class ClockingsTable
 {
@@ -38,7 +40,9 @@ class ClockingsTable
             ->filters([
                 \Filament\Tables\Filters\SelectFilter::make('employee_id')
                     ->label('Filtrar por Empleado')
-                    ->relationship('employee', 'first_name'),
+                    ->relationship('employee', 'first_name',
+                        modifyQueryUsing: fn (Builder $query) => RestaurantFormScoping::scopeToRestaurant($query)
+                    ),
             ])
             ->recordActions([
                 EditAction::make(),

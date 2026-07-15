@@ -2,6 +2,7 @@
 
 namespace App\Filament\Resources\HappyHours\Schemas;
 
+use App\Filament\Resources\Concerns\RestaurantFormScoping;
 use Filament\Schemas\Schema;
 use Filament\Forms\Components\Select;
 use Filament\Forms\Components\TextInput;
@@ -21,10 +22,7 @@ class HappyHourForm
             ->components([
                 Grid::make(2)->schema([
                     Section::make('Configuración Básica')->columnSpan(1)->schema([
-                        Select::make('restaurant_id')
-                            ->relationship('restaurant', 'name')
-                            ->required()
-                            ->default(1),
+                        RestaurantFormScoping::restaurantSelect(),
                         TextInput::make('name')
                             ->label('Nombre de la Promoción')
                             ->required()
@@ -82,10 +80,10 @@ class HappyHourForm
                             ->label('Seleccionar Ítem')
                             ->options(function (Get $get) {
                                 if ($get('target_type') === 'menu_category') {
-                                    return MenuCategory::where('restaurant_id', $get('restaurant_id'))->pluck('name', 'id');
+                                    return MenuCategory::where('restaurant_id', RestaurantFormScoping::selectedRestaurantId($get('restaurant_id')))->pluck('name', 'id');
                                 }
                                 if ($get('target_type') === 'dish') {
-                                    return Dish::where('restaurant_id', $get('restaurant_id'))->pluck('name', 'id');
+                                    return Dish::where('restaurant_id', RestaurantFormScoping::selectedRestaurantId($get('restaurant_id')))->pluck('name', 'id');
                                 }
                                 return [];
                             })

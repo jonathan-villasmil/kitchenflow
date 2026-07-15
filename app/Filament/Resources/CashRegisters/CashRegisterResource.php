@@ -3,8 +3,10 @@
 namespace App\Filament\Resources\CashRegisters;
 
 use App\Filament\Resources\Concerns\ScopedToRestaurant;
+use App\Filament\Resources\Concerns\RestaurantFormScoping;
 use App\Filament\Resources\CashRegisters\Pages\ManageCashRegisters;
 use App\Models\CashRegister;
+use App\Models\User;
 use BackedEnum;
 use Filament\Actions\BulkActionGroup;
 use Filament\Actions\DeleteAction;
@@ -36,14 +38,20 @@ class CashRegisterResource extends Resource
     {
         return $schema
             ->components([
-                TextInput::make('restaurant_id')
+                RestaurantFormScoping::restaurantSelect(),
+                Select::make('opened_by')
+                    ->options(fn ($get) =>
+                        User::where('restaurant_id', RestaurantFormScoping::selectedRestaurantId($get('restaurant_id')))
+                            ->pluck('name', 'id')
+                    )
                     ->required()
-                    ->numeric(),
-                TextInput::make('opened_by')
-                    ->required()
-                    ->numeric(),
-                TextInput::make('closed_by')
-                    ->numeric(),
+                    ->searchable(),
+                Select::make('closed_by')
+                    ->options(fn ($get) =>
+                        User::where('restaurant_id', RestaurantFormScoping::selectedRestaurantId($get('restaurant_id')))
+                            ->pluck('name', 'id')
+                    )
+                    ->searchable(),
                 TextInput::make('opening_amount')
                     ->required()
                     ->numeric()

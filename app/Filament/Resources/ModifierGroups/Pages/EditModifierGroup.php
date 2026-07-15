@@ -2,12 +2,15 @@
 
 namespace App\Filament\Resources\ModifierGroups\Pages;
 
+use App\Filament\Resources\Concerns\ForcesRestaurantFormData;
 use App\Filament\Resources\ModifierGroups\ModifierGroupResource;
 use Filament\Actions\DeleteAction;
 use Filament\Resources\Pages\EditRecord;
 
 class EditModifierGroup extends EditRecord
 {
+    use ForcesRestaurantFormData;
+
     protected static string $resource = ModifierGroupResource::class;
 
     protected function getHeaderActions(): array

@@ -2,8 +2,8 @@
 
 namespace App\Filament\Resources\Dishes\Schemas;
 
+use App\Filament\Resources\Concerns\RestaurantFormScoping;
 use App\Models\MenuCategory;
-use App\Models\Restaurant;
 use Filament\Forms\Components\ColorPicker;
 use Filament\Forms\Components\FileUpload;
 use Filament\Schemas\Components\Grid;
@@ -48,22 +48,19 @@ class DishForm
                                 ->columnSpanFull(),
 
                             Grid::make(2)->schema([
-                                Select::make('restaurant_id')
-                                    ->label('Restaurante')
-                                    ->relationship('restaurant', 'name')
-                                    ->required()
-                                    ->searchable()
-                                    ->preload(),
+                                RestaurantFormScoping::restaurantSelect(),
                                 Select::make('menu_category_id')
                                     ->label('Categoría')
                                     ->options(fn ($get) =>
-                                        MenuCategory::where('restaurant_id', $get('restaurant_id'))
+                                        MenuCategory::where('restaurant_id', RestaurantFormScoping::selectedRestaurantId($get('restaurant_id')))
                                             ->pluck('name', 'id')
                                     )
                                     ->searchable()
                                     ->reactive(),
                                 Select::make('modifierGroups')
-                                    ->relationship('modifierGroups', 'name')
+                                    ->relationship('modifierGroups', 'name',
+                                        modifyQueryUsing: fn (\Illuminate\Database\Eloquent\Builder $query) => RestaurantFormScoping::scopeToRestaurant($query)
+                                    )
                                     ->label('Grupos de Opciones (Extras, Punto...)')
                                     ->multiple()
                                     ->preload(),
@@ -124,7 +121,10 @@ class DishForm
                                 ->schema([
                                     Select::make('inventory_item_id')
                                         ->label('Artículo de Inventario')
-                                        ->options(fn () => InventoryItem::pluck('name', 'id'))
+                                        ->options(fn ($get) =>
+                                            InventoryItem::where('restaurant_id', RestaurantFormScoping::selectedRestaurantId($get('../../restaurant_id')))
+                                                ->pluck('name', 'id')
+                                        )
                                         ->searchable()
                                         ->required()
                                         ->columnSpan(2),

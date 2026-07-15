@@ -3,6 +3,7 @@
 namespace App\Filament\Resources;
 
 use App\Filament\Resources\Concerns\ScopedToRestaurant;
+use App\Filament\Resources\Concerns\RestaurantFormScoping;
 use App\Models\Zone;
 use Filament\Forms\Components\FileUpload;
 use Filament\Forms\Components\Select;
@@ -31,12 +32,7 @@ class ZoneResource extends Resource
             ->schema([
                 Section::make('Información de la Zona')
                     ->schema([
-                        Select::make('restaurant_id')
-                            ->label('Restaurante')
-                            ->relationship('restaurant', 'name')
-                            ->required()
-                            ->searchable()
-                            ->preload(),
+                        RestaurantFormScoping::restaurantSelect(),
                         TextInput::make('name')
                             ->label('Nombre de la Zona')
                             ->required()
