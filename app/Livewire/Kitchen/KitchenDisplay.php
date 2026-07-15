@@ -27,9 +27,23 @@ class KitchenDisplay extends Component
         $this->station = request()->query('station', 'hot');
     }
 
+    private function restaurantId(): ?int
+    {
+        return auth()->user()?->restaurant_id;
+    }
+
+    private function findOrderItemForCurrentRestaurant(int $itemId): ?OrderItem
+    {
+        return OrderItem::whereKey($itemId)
+            ->whereHas('order', fn ($query) =>
+                $query->where('restaurant_id', $this->restaurantId())
+            )
+            ->first();
+    }
+
     public function markAsReady($itemId)
     {
-        $item = OrderItem::find($itemId);
+        $item = $this->findOrderItemForCurrentRestaurant((int) $itemId);
         if ($item) {
             $item->update([
                 'status'   => 'ready',
