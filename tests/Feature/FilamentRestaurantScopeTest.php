@@ -6,6 +6,7 @@ use App\Filament\Resources\Clockings\ClockingResource;
 use App\Filament\Resources\Concerns\RestaurantFormScoping;
 use App\Filament\Resources\Customers\CustomerResource;
 use App\Filament\Resources\Modifiers\ModifierResource;
+use App\Filament\Resources\Shifts\Pages\Concerns\SetsShiftRestaurantFromEmployee;
 use App\Filament\Resources\RestaurantResource;
 use App\Support\AdminRestaurantContext;
 use App\Models\Clocking;
@@ -244,6 +245,42 @@ class FilamentRestaurantScopeTest extends TestCase
 
         $this->assertTrue(RestaurantFormScoping::scopeToRestaurant(Restaurant::query())->whereKey($restaurant->id)->exists());
         $this->assertTrue(RestaurantFormScoping::scopeToRestaurant(Restaurant::query())->whereKey($otherRestaurant->id)->exists());
+    }
+
+    public function test_shift_form_data_uses_selected_employee_restaurant(): void
+    {
+        [$restaurant, $otherRestaurant] = $this->makeTenantScenario();
+
+        $superAdmin = User::create([
+            'name'          => 'Super Admin Shifts',
+            'email'         => 'super-admin-shifts@kitchenflow.test',
+            'password'      => bcrypt('password'),
+            'restaurant_id' => $restaurant->id,
+        ]);
+        $superAdmin->assignRole('super_admin');
+
+        $employee = Employee::create([
+            'restaurant_id' => $otherRestaurant->id,
+            'first_name'    => 'Empleado',
+            'last_name'     => 'Turnos',
+        ]);
+
+        $this->actingAs($superAdmin)
+            ->withSession([AdminRestaurantContext::SESSION_KEY => $otherRestaurant->id]);
+
+        $data = (new class {
+            use SetsShiftRestaurantFromEmployee;
+
+            public function apply(array $data): array
+            {
+                return $this->setShiftRestaurantFromEmployee($data);
+            }
+        })->apply([
+            'restaurant_id' => $restaurant->id,
+            'employee_id'   => $employee->id,
+        ]);
+
+        $this->assertSame($otherRestaurant->id, $data['restaurant_id']);
     }
 
     private function makeTenantScenario(): array
