@@ -17,6 +17,7 @@ use App\Models\ModifierGroup;
 use App\Models\Restaurant;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Validation\ValidationException;
 use Tests\TestCase;
 
 class FilamentRestaurantScopeTest extends TestCase
@@ -281,6 +282,33 @@ class FilamentRestaurantScopeTest extends TestCase
         ]);
 
         $this->assertSame($otherRestaurant->id, $data['restaurant_id']);
+    }
+
+    public function test_shift_form_data_rejects_employee_from_another_restaurant(): void
+    {
+        [$restaurant, $otherRestaurant, $manager] = $this->makeTenantScenario();
+
+        $foreignEmployee = Employee::create([
+            'restaurant_id' => $otherRestaurant->id,
+            'first_name'    => 'Empleado',
+            'last_name'     => 'Externo',
+        ]);
+
+        $this->actingAs($manager);
+
+        $this->expectException(ValidationException::class);
+
+        (new class {
+            use SetsShiftRestaurantFromEmployee;
+
+            public function apply(array $data): array
+            {
+                return $this->setShiftRestaurantFromEmployee($data);
+            }
+        })->apply([
+            'restaurant_id' => $restaurant->id,
+            'employee_id'   => $foreignEmployee->id,
+        ]);
     }
 
     private function makeTenantScenario(): array
