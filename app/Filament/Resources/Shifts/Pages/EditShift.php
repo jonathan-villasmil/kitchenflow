@@ -17,7 +17,8 @@ class EditShift extends EditRecord
     protected function mutateFormDataBeforeSave(array $data): array
     {
         return $this->setShiftRestaurantFromEmployee(
-            RestaurantFormScoping::forceRestaurantOnFormData($data)
+            RestaurantFormScoping::forceRestaurantOnFormData($data),
+            $this->record->id,
         );
     }
 

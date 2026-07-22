@@ -15,6 +15,7 @@ use App\Models\Employee;
 use App\Models\Modifier;
 use App\Models\ModifierGroup;
 use App\Models\Restaurant;
+use App\Models\Shift;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Illuminate\Validation\ValidationException;
@@ -311,6 +312,104 @@ class FilamentRestaurantScopeTest extends TestCase
         ]);
     }
 
+    public function test_shift_form_data_rejects_overlapping_shift_for_same_employee(): void
+    {
+        [$restaurant, , $manager] = $this->makeTenantScenario();
+
+        $employee = Employee::create([
+            'restaurant_id' => $restaurant->id,
+            'first_name'    => 'Empleado',
+            'last_name'     => 'Solape',
+        ]);
+
+        Shift::create([
+            'restaurant_id'  => $restaurant->id,
+            'employee_id'    => $employee->id,
+            'date'           => '2026-07-22',
+            'start_time'     => '10:00',
+            'end_time'       => '16:00',
+            'break_minutes'  => 0,
+            'status'         => 'scheduled',
+        ]);
+
+        $this->actingAs($manager);
+        $this->expectException(ValidationException::class);
+
+        $this->applyShiftFormData([
+            'restaurant_id'  => $restaurant->id,
+            'employee_id'    => $employee->id,
+            'date'           => '2026-07-22',
+            'start_time'     => '14:00',
+            'end_time'       => '20:00',
+        ]);
+    }
+
+    public function test_shift_form_data_allows_adjacent_shift_for_same_employee(): void
+    {
+        [$restaurant, , $manager] = $this->makeTenantScenario();
+
+        $employee = Employee::create([
+            'restaurant_id' => $restaurant->id,
+            'first_name'    => 'Empleado',
+            'last_name'     => 'Contiguo',
+        ]);
+
+        Shift::create([
+            'restaurant_id'  => $restaurant->id,
+            'employee_id'    => $employee->id,
+            'date'           => '2026-07-22',
+            'start_time'     => '10:00',
+            'end_time'       => '16:00',
+            'break_minutes'  => 0,
+            'status'         => 'scheduled',
+        ]);
+
+        $this->actingAs($manager);
+
+        $data = $this->applyShiftFormData([
+            'restaurant_id'  => $restaurant->id,
+            'employee_id'    => $employee->id,
+            'date'           => '2026-07-22',
+            'start_time'     => '16:00',
+            'end_time'       => '20:00',
+        ]);
+
+        $this->assertSame($restaurant->id, $data['restaurant_id']);
+    }
+
+    public function test_shift_form_data_ignores_current_shift_when_editing(): void
+    {
+        [$restaurant, , $manager] = $this->makeTenantScenario();
+
+        $employee = Employee::create([
+            'restaurant_id' => $restaurant->id,
+            'first_name'    => 'Empleado',
+            'last_name'     => 'Edicion',
+        ]);
+
+        $shift = Shift::create([
+            'restaurant_id'  => $restaurant->id,
+            'employee_id'    => $employee->id,
+            'date'           => '2026-07-22',
+            'start_time'     => '10:00',
+            'end_time'       => '16:00',
+            'break_minutes'  => 0,
+            'status'         => 'scheduled',
+        ]);
+
+        $this->actingAs($manager);
+
+        $data = $this->applyShiftFormData([
+            'restaurant_id'  => $restaurant->id,
+            'employee_id'    => $employee->id,
+            'date'           => '2026-07-22',
+            'start_time'     => '10:00',
+            'end_time'       => '16:00',
+        ], $shift->id);
+
+        $this->assertSame($restaurant->id, $data['restaurant_id']);
+    }
+
     private function makeTenantScenario(): array
     {
         $restaurant = Restaurant::create(['name' => 'Restaurante A', 'slug' => 'restaurante-a']);
@@ -325,5 +424,17 @@ class FilamentRestaurantScopeTest extends TestCase
         $manager->assignRole('manager');
 
         return [$restaurant, $otherRestaurant, $manager];
+    }
+
+    private function applyShiftFormData(array $data, ?int $ignoreShiftId = null): array
+    {
+        return (new class {
+            use SetsShiftRestaurantFromEmployee;
+
+            public function apply(array $data, ?int $ignoreShiftId = null): array
+            {
+                return $this->setShiftRestaurantFromEmployee($data, $ignoreShiftId);
+            }
+        })->apply($data, $ignoreShiftId);
     }
 }
