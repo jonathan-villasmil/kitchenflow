@@ -410,6 +410,94 @@ class FilamentRestaurantScopeTest extends TestCase
         $this->assertSame($restaurant->id, $data['restaurant_id']);
     }
 
+    public function test_shift_form_data_allows_overnight_shift(): void
+    {
+        [$restaurant, , $manager] = $this->makeTenantScenario();
+
+        $employee = Employee::create([
+            'restaurant_id' => $restaurant->id,
+            'first_name'    => 'Empleado',
+            'last_name'     => 'Noche',
+        ]);
+
+        $this->actingAs($manager);
+
+        $data = $this->applyShiftFormData([
+            'restaurant_id'  => $restaurant->id,
+            'employee_id'    => $employee->id,
+            'date'           => '2026-07-22',
+            'start_time'     => '22:00',
+            'end_time'       => '02:00',
+        ]);
+
+        $this->assertSame($restaurant->id, $data['restaurant_id']);
+    }
+
+    public function test_shift_form_data_rejects_overlap_with_overnight_shift_next_day(): void
+    {
+        [$restaurant, , $manager] = $this->makeTenantScenario();
+
+        $employee = Employee::create([
+            'restaurant_id' => $restaurant->id,
+            'first_name'    => 'Empleado',
+            'last_name'     => 'Madrugada',
+        ]);
+
+        Shift::create([
+            'restaurant_id'  => $restaurant->id,
+            'employee_id'    => $employee->id,
+            'date'           => '2026-07-22',
+            'start_time'     => '22:00',
+            'end_time'       => '02:00',
+            'break_minutes'  => 0,
+            'status'         => 'scheduled',
+        ]);
+
+        $this->actingAs($manager);
+        $this->expectException(ValidationException::class);
+
+        $this->applyShiftFormData([
+            'restaurant_id'  => $restaurant->id,
+            'employee_id'    => $employee->id,
+            'date'           => '2026-07-23',
+            'start_time'     => '01:00',
+            'end_time'       => '05:00',
+        ]);
+    }
+
+    public function test_shift_form_data_allows_adjacent_shift_after_overnight_shift(): void
+    {
+        [$restaurant, , $manager] = $this->makeTenantScenario();
+
+        $employee = Employee::create([
+            'restaurant_id' => $restaurant->id,
+            'first_name'    => 'Empleado',
+            'last_name'     => 'Salida',
+        ]);
+
+        Shift::create([
+            'restaurant_id'  => $restaurant->id,
+            'employee_id'    => $employee->id,
+            'date'           => '2026-07-22',
+            'start_time'     => '22:00',
+            'end_time'       => '02:00',
+            'break_minutes'  => 0,
+            'status'         => 'scheduled',
+        ]);
+
+        $this->actingAs($manager);
+
+        $data = $this->applyShiftFormData([
+            'restaurant_id'  => $restaurant->id,
+            'employee_id'    => $employee->id,
+            'date'           => '2026-07-23',
+            'start_time'     => '02:00',
+            'end_time'       => '06:00',
+        ]);
+
+        $this->assertSame($restaurant->id, $data['restaurant_id']);
+    }
+
     private function makeTenantScenario(): array
     {
         $restaurant = Restaurant::create(['name' => 'Restaurante A', 'slug' => 'restaurante-a']);

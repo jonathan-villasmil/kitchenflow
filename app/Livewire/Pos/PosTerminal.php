@@ -14,6 +14,7 @@ use App\Models\Clocking;
 use App\Models\Customer;
 use App\Models\User;
 use App\Events\OrderPaid;
+use App\Support\ShiftClockingMatcher;
 use Filament\Notifications\Notification;
 use Illuminate\Support\Facades\Log;
 use Livewire\Component;
@@ -726,10 +727,16 @@ class PosTerminal extends Component
         $active = $this->activeClocking;
 
         if ($active) {
+            $clockedOutAt = now();
+
             $active->update([
-                'clocked_out_at' => now(),
-                'total_minutes' => now()->diffInMinutes($active->clocked_in_at),
+                'clocked_out_at' => $clockedOutAt,
+                'total_minutes' => $active->clocked_in_at->diffInMinutes($clockedOutAt),
             ]);
+
+            if ($active->shift) {
+                $active->shift->update(['status' => 'completed']);
+            }
 
             Notification::make()
                 ->title('Salida registrada')
@@ -737,10 +744,14 @@ class PosTerminal extends Component
                 ->success()
                 ->send();
         } else {
-            Clocking::create([
+            $clocking = Clocking::create(ShiftClockingMatcher::applyToClockingData([
                 'employee_id' => $employee->id,
                 'clocked_in_at' => now(),
-            ]);
+            ]));
+
+            if ($clocking->shift) {
+                $clocking->shift->update(['status' => 'confirmed']);
+            }
 
             Notification::make()
                 ->title('Entrada registrada')

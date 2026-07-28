@@ -56,6 +56,7 @@
                 <p class="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-8 mb-4 px-3">Operaciones</p>
                 <a href="#cocina" class="block px-3 py-2 text-sm text-gray-600 hover:bg-white hover:text-orange-600 rounded-lg transition font-medium">🍳 Pantalla Cocina (KDS)</a>
                 <a href="#inventario" class="block px-3 py-2 text-sm text-gray-600 hover:bg-white hover:text-orange-600 rounded-lg transition font-medium">📦 Inventario y Recetas</a>
+                <a href="#turnos" class="block px-3 py-2 text-sm text-gray-600 hover:bg-white hover:text-orange-600 rounded-lg transition font-medium">Planificacion de Turnos</a>
                 <a href="#fichaje" class="block px-3 py-2 text-sm text-gray-600 hover:bg-white hover:text-orange-600 rounded-lg transition font-medium">⏰ Fichaje de Personal</a>
                 
                 <p class="text-[10px] font-bold text-gray-400 uppercase tracking-widest mt-8 mb-4 px-3">Soporte</p>
@@ -226,6 +227,45 @@
                     </div>
                     <div>
                         <img src="{{ asset('images/help/receipt.png') }}" onerror="this.src='https://placehold.co/400x500?text=Ejemplo+Ticket'" alt="Ejemplo Ticket" class="rounded-xl shadow-lg border border-gray-200 max-h-[400px]">
+                    </div>
+                </div>
+            </section>
+
+            <!-- Section: Turnos -->
+            <section id="turnos" class="content-section mb-20 bg-white p-8 rounded-2xl shadow-sm border border-gray-100">
+                <h2 class="text-2xl font-bold text-slate-800 mb-6 flex items-center gap-2">
+                    <i class="fa-solid fa-calendar-days text-orange-500"></i> Planificacion de Turnos
+                </h2>
+                <div class="grid md:grid-cols-2 gap-8">
+                    <div>
+                        <p class="text-gray-600 mb-4">Los turnos se crean desde el panel administrativo seleccionando el empleado, la fecha y el horario.</p>
+                        <ul class="space-y-4">
+                            <li class="flex items-start gap-3">
+                                <i class="fa-solid fa-store text-orange-500 mt-1"></i>
+                                <span class="text-sm text-gray-600">El turno queda asociado automaticamente al restaurante del empleado seleccionado.</span>
+                            </li>
+                            <li class="flex items-start gap-3">
+                                <i class="fa-solid fa-triangle-exclamation text-amber-500 mt-1"></i>
+                                <span class="text-sm text-gray-600">El sistema bloquea dos turnos solapados para el mismo empleado.</span>
+                            </li>
+                            <li class="flex items-start gap-3">
+                                <i class="fa-solid fa-moon text-slate-600 mt-1"></i>
+                                <span class="text-sm text-gray-600">Los turnos nocturnos estan permitidos. Si la hora de fin es anterior a la hora de inicio, se entiende que termina al dia siguiente.</span>
+                            </li>
+                            <li class="flex items-start gap-3">
+                                <i class="fa-solid fa-user-clock text-blue-500 mt-1"></i>
+                                <span class="text-sm text-gray-600">Cuando un empleado ficha entrada o salida, el sistema intenta enlazar ese fichaje con su turno planificado.</span>
+                            </li>
+                        </ul>
+                    </div>
+                    <div class="bg-slate-50 border border-slate-200 rounded-2xl p-6">
+                        <h4 class="font-bold text-slate-800 mb-3 uppercase text-xs tracking-widest">Ejemplo de turno nocturno</h4>
+                        <p class="text-sm text-gray-600 mb-4">Un turno con fecha 28/07, inicio 22:00 y fin 02:00 se interpreta como una jornada que termina el 29/07 a las 02:00.</p>
+                        <p class="text-xs text-gray-500">Otro turno del mismo empleado que empiece a las 01:00 se bloqueara. Si empieza a las 02:00, se permite porque no se solapa.</p>
+                        <div class="mt-5 pt-5 border-t border-slate-200">
+                            <h4 class="font-bold text-slate-800 mb-2 uppercase text-xs tracking-widest">Fichajes reales</h4>
+                            <p class="text-xs text-gray-500">En el listado de fichajes, el gerente puede ver si el registro quedo asociado a un turno, si hubo entrada tarde o salida anticipada.</p>
+                        </div>
                     </div>
                 </div>
             </section>

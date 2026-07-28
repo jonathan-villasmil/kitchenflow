@@ -3,6 +3,7 @@
 namespace App\Filament\Resources\Clockings\Pages;
 
 use App\Filament\Resources\Clockings\ClockingResource;
+use App\Support\ShiftClockingMatcher;
 use Filament\Actions\DeleteAction;
 use Filament\Resources\Pages\EditRecord;
 
@@ -15,5 +16,10 @@ class EditClocking extends EditRecord
         return [
             DeleteAction::make(),
         ];
+    }
+
+    protected function mutateFormDataBeforeSave(array $data): array
+    {
+        return ShiftClockingMatcher::applyToClockingData($data);
     }
 }

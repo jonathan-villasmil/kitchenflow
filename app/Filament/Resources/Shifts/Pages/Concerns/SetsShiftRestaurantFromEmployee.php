@@ -5,6 +5,7 @@ namespace App\Filament\Resources\Shifts\Pages\Concerns;
 use App\Models\Employee;
 use App\Models\Shift;
 use App\Support\AdminRestaurantContext;
+use Carbon\Carbon;
 use Illuminate\Validation\ValidationException;
 
 trait SetsShiftRestaurantFromEmployee
@@ -44,13 +45,22 @@ trait SetsShiftRestaurantFromEmployee
             return;
         }
 
-        $overlapExists = Shift::query()
+        [$newStart, $newEnd] = $this->shiftDateTimeRange($data['date'], $data['start_time'], $data['end_time']);
+
+        $nearbyShifts = Shift::query()
             ->where('employee_id', $data['employee_id'])
-            ->whereDate('date', $data['date'])
+            ->whereBetween('date', [
+                $newStart->copy()->subDay()->toDateString(),
+                $newEnd->copy()->addDay()->toDateString(),
+            ])
             ->when($ignoreShiftId, fn ($query) => $query->whereKeyNot($ignoreShiftId))
-            ->where('start_time', '<', $data['end_time'])
-            ->where('end_time', '>', $data['start_time'])
-            ->exists();
+            ->get();
+
+        $overlapExists = $nearbyShifts->contains(function (Shift $shift) use ($newStart, $newEnd) {
+            [$existingStart, $existingEnd] = $this->shiftDateTimeRange($shift->date, $shift->start_time, $shift->end_time);
+
+            return $existingStart->lt($newEnd) && $existingEnd->gt($newStart);
+        });
 
         if ($overlapExists) {
             throw ValidationException::withMessages([
@@ -58,5 +68,18 @@ trait SetsShiftRestaurantFromEmployee
                 'end_time' => 'Este empleado ya tiene un turno que se solapa en esa fecha y horario.',
             ]);
         }
+    }
+
+    protected function shiftDateTimeRange(mixed $date, mixed $startTime, mixed $endTime): array
+    {
+        $date = Carbon::parse($date)->toDateString();
+        $start = Carbon::parse($date . ' ' . $startTime);
+        $end = Carbon::parse($date . ' ' . $endTime);
+
+        if ($end->lessThanOrEqualTo($start)) {
+            $end->addDay();
+        }
+
+        return [$start, $end];
     }
 }

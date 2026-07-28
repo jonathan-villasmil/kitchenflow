@@ -44,6 +44,18 @@ class ClockingResource extends Resource
                             ->required()
                             ->columnSpanFull(),
 
+                        Forms\Components\Select::make('shift_id')
+                            ->relationship('shift', 'id',
+                                modifyQueryUsing: fn (Builder $query) => $query
+                                    ->whereHas('employee', fn (Builder $employeeQuery) => RestaurantFormScoping::scopeToRestaurant($employeeQuery))
+                            )
+                            ->getOptionLabelFromRecordUsing(fn ($record) => $record->employee->name . ' - ' . $record->date->format('d/m/Y') . ' ' . substr($record->start_time, 0, 5) . '-' . substr($record->end_time, 0, 5))
+                            ->label('Turno planificado')
+                            ->searchable()
+                            ->preload()
+                            ->helperText('Si se deja vacio, el sistema intentara enlazar el fichaje con el turno planificado mas cercano.')
+                            ->columnSpanFull(),
+
                         Forms\Components\DateTimePicker::make('clocked_in_at')
                             ->label('Hora de Entrada')
                             ->required()
@@ -87,6 +99,33 @@ class ClockingResource extends Resource
                     ->dateTime('d/m/Y H:i')
                     ->sortable()
                     ->placeholder('En curso...'),
+
+                Tables\Columns\TextColumn::make('shift.date')
+                    ->label('Turno')
+                    ->date('d/m/Y')
+                    ->placeholder('Sin turno')
+                    ->sortable(),
+
+                Tables\Columns\TextColumn::make('attendance_status')
+                    ->label('Estado')
+                    ->badge()
+                    ->color(fn (string $state): string => match ($state) {
+                        'matched', 'open' => 'success',
+                        'open_late', 'late' => 'warning',
+                        'left_early', 'late_and_left_early' => 'danger',
+                        'unplanned' => 'gray',
+                        default => 'gray',
+                    })
+                    ->formatStateUsing(fn (string $state): string => match ($state) {
+                        'matched' => 'Correcto',
+                        'open' => 'En curso',
+                        'open_late' => 'En curso tarde',
+                        'late' => 'Entrada tarde',
+                        'left_early' => 'Salida anticipada',
+                        'late_and_left_early' => 'Tarde y salida anticipada',
+                        'unplanned' => 'Sin turno',
+                        default => $state,
+                    }),
 
                 Tables\Columns\TextColumn::make('total_minutes')
                     ->label('Horas Trabajadas')
