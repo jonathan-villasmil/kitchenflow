@@ -205,11 +205,20 @@
                         <div class="flex justify-between items-start mb-2">
                             <span class="font-mono text-xl font-bold text-white">#{{ str_pad($order->id, 5, '0', STR_PAD_LEFT) }}</span>
                             <span class="font-bold text-lg px-2 py-0.5 rounded bg-gray-950/50">
-                                {{ $order->table ? 'Mesa '.$order->table->number : ($order->type === 'takeaway' ? 'Llevar' : 'Delivery') }}
+                                @php
+                                    $channelLabel = match($order->source ?? 'pos') {
+                                        'takeaway' => 'Recogida',
+                                        'manual_delivery' => 'Reparto',
+                                        'glovo' => 'Glovo',
+                                        'uber_eats' => 'Uber Eats',
+                                        default => $order->table ? 'Mesa '.$order->table->number : ($order->type === 'takeaway' ? 'Recogida' : 'Directo'),
+                                    };
+                                @endphp
+                                {{ $channelLabel }}
                             </span>
                         </div>
                         <div class="flex justify-between text-sm text-gray-400">
-                            <span>{{ $order->user->name ?? 'Sistema' }}</span>
+                            <span>{{ $order->delivery?->customer_name ?? $order->user->name ?? 'Sistema' }}</span>
                             <span class="font-mono font-bold {{ $urgent ? 'text-red-400' : ($warning ? 'text-orange-400' : 'text-gray-400') }}">
                                 @if($totalSeconds < 60)
                                     🟢 Recién
@@ -218,6 +227,16 @@
                                 @endif
                             </span>
                         </div>
+                        @if($order->external_order_id || $order->delivery?->delivery_notes)
+                            <div class="mt-2 text-xs text-gray-300 bg-gray-950/40 rounded p-2">
+                                @if($order->external_order_id)
+                                    <div class="font-bold">Ref: {{ $order->external_order_id }}</div>
+                                @endif
+                                @if($order->delivery?->delivery_notes)
+                                    <div>{{ $order->delivery->delivery_notes }}</div>
+                                @endif
+                            </div>
+                        @endif
                     </div>
 
                     <!-- Ticket Items -->

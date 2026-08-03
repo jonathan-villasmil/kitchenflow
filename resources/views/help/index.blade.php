@@ -188,6 +188,10 @@
                         <img src="{{ asset('images/help/pos_pedidos.png') }}" onerror="this.src='https://placehold.co/400x300?text=Modulo+Modificadores'" class="rounded-lg shadow-md max-w-[300px]" alt="Carrito Modificadores">
                     </div>
                 </div>
+                <div class="bg-gray-50 border border-gray-200 p-6 rounded-2xl">
+                    <h4 class="font-bold text-slate-800 mb-3 uppercase text-xs tracking-widest">Canales de pedido</h4>
+                    <p class="text-sm text-gray-600 leading-relaxed">El TPV permite crear pedidos de sala, recogida, reparto propio, Glovo y Uber Eats. En Glovo y Uber Eats, el pedido se introduce manualmente y debe incluir la referencia externa de la plataforma.</p>
+                </div>
             </section>
 
             <!-- Section: KDS -->
@@ -204,6 +208,7 @@
                         <li><strong>Campana:</strong> Notifica al camarero que la mesa {{ 'X' }} está servida.</li>
                         <li><strong>Tiempos:</strong> El ticket cambia de color si lleva más de 15 minutos en espera.</li>
                         <li><strong>Anulaciones:</strong> Si un gerente anula desde el TPV un plato ya enviado a cocina, el KDS se actualiza en tiempo real.</li>
+                        <li><strong>Reparto:</strong> Los pedidos de recogida, reparto propio, Glovo y Uber Eats aparecen identificados con su canal.</li>
                     </ul>
                 </div>
             </section>

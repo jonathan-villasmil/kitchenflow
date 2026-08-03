@@ -25,6 +25,17 @@ class PosTerminal extends Component
     // ─── Table Selection ───────────────────────────────────────────────
     public ?int $selectedTableId = null;
     public string $orderType = 'dine_in'; // dine_in, takeaway, delivery
+    public string $orderSource = 'pos'; // pos, manual_delivery, glovo, uber_eats
+    public ?string $externalOrderId = null;
+    public ?string $deliveryCustomerName = null;
+    public ?string $deliveryCustomerPhone = null;
+    public ?string $deliveryAddressLine = null;
+    public ?string $deliveryCity = null;
+    public ?string $deliveryPostalCode = null;
+    public ?string $deliveryNotes = null;
+    public ?string $deliveryScheduledAt = null;
+    public float $deliveryFee = 0;
+    public float $platformFee = 0;
 
     // ─── Menu Navigation ───────────────────────────────────────────────
     public ?int $selectedCategoryId = null;
@@ -116,6 +127,38 @@ class PosTerminal extends Component
         if (!$customerId) return null;
 
         return Customer::where('restaurant_id', $this->restaurantId())->find($customerId);
+    }
+
+    public function setOrderChannel(string $source): void
+    {
+        if (!array_key_exists($source, $this->orderChannelOptions())) {
+            return;
+        }
+
+        $this->orderSource = $source;
+        $this->orderType = $source === 'pos' ? 'dine_in' : ($source === 'takeaway' ? 'takeaway' : 'delivery');
+        $this->selectedTableId = $this->orderType === 'dine_in' ? $this->selectedTableId : null;
+
+        if (!in_array($source, ['glovo', 'uber_eats'], true)) {
+            $this->externalOrderId = null;
+            $this->platformFee = 0;
+        }
+    }
+
+    public function orderChannelOptions(): array
+    {
+        return [
+            'pos' => 'Sala',
+            'takeaway' => 'Recogida',
+            'manual_delivery' => 'Reparto propio',
+            'glovo' => 'Glovo',
+            'uber_eats' => 'Uber Eats',
+        ];
+    }
+
+    public function getOrderChannelLabelProperty(): string
+    {
+        return $this->orderChannelOptions()[$this->orderSource] ?? 'Sala';
     }
 
     private function activeRegisterForCurrentRestaurant(): ?CashRegister
@@ -344,6 +387,7 @@ class PosTerminal extends Component
         $table = $this->findTableForCurrentRestaurant($tableId);
         if (!$table) abort(403, 'Mesa no disponible para este restaurante.');
 
+        $this->setOrderChannel('pos');
         $this->selectedTableId = $tableId;
 
         // Check if table has an active order
@@ -359,9 +403,35 @@ class PosTerminal extends Component
         $this->view = 'pos';
     }
 
+    public function startDirectOrder(?string $source = null): void
+    {
+        $this->setOrderChannel($source ?: $this->orderSource);
+        $this->selectedTableId = null;
+        $this->currentOrderId = null;
+        $this->cart = [];
+        $this->view = 'pos';
+    }
+
     private function loadOrderToCart(Order $order): void
     {
         $this->cart = [];
+        $this->orderType = $order->type;
+        $this->orderSource = $order->source ?? ($order->type === 'takeaway' ? 'takeaway' : 'pos');
+        $this->externalOrderId = $order->external_order_id;
+        $this->selectedCustomerId = $order->customer_id;
+
+        if ($order->delivery) {
+            $this->deliveryCustomerName = $order->delivery->customer_name;
+            $this->deliveryCustomerPhone = $order->delivery->customer_phone;
+            $this->deliveryAddressLine = $order->delivery->address_line;
+            $this->deliveryCity = $order->delivery->city;
+            $this->deliveryPostalCode = $order->delivery->postal_code;
+            $this->deliveryNotes = $order->delivery->delivery_notes;
+            $this->deliveryScheduledAt = $order->delivery->scheduled_at?->format('Y-m-d\TH:i');
+            $this->deliveryFee = (float) $order->delivery->delivery_fee;
+            $this->platformFee = (float) $order->delivery->platform_fee;
+        }
+
         foreach ($order->items()->where('status', '!=', 'cancelled')->with('modifiers')->get() as $item) {
             $modifiers = $item->modifiers->map(fn($m) => [
                 'id' => $m->modifier_id,
@@ -676,7 +746,7 @@ class PosTerminal extends Component
 
     public function getTotalProperty(): float
     {
-        return round($this->subtotal + $this->tax, 2);
+        return round($this->subtotal + $this->tax + max(0, (float) $this->deliveryFee), 2);
     }
 
     public function getGrandTotalProperty(): float
@@ -687,6 +757,64 @@ class PosTerminal extends Component
     public function getChangeProperty(): float
     {
         return max(0, $this->cashReceived - ($this->grandTotal / $this->splitWays));
+    }
+
+    private function validateOrderChannelBeforeKitchen(): bool
+    {
+        if ($this->orderType !== 'delivery') {
+            return true;
+        }
+
+        $this->deliveryFee = max(0, (float) $this->deliveryFee);
+        $this->platformFee = max(0, (float) $this->platformFee);
+
+        if (blank($this->deliveryCustomerName) || blank($this->deliveryCustomerPhone)) {
+            session()->flash('success', 'Faltan nombre y telefono para el pedido de reparto.');
+            return false;
+        }
+
+        if ($this->orderSource === 'manual_delivery' && blank($this->deliveryAddressLine)) {
+            session()->flash('success', 'Falta la direccion para el reparto propio.');
+            return false;
+        }
+
+        if (in_array($this->orderSource, ['glovo', 'uber_eats'], true) && blank($this->externalOrderId)) {
+            session()->flash('success', 'Falta la referencia externa de la plataforma.');
+            return false;
+        }
+
+        return true;
+    }
+
+    private function persistOrderChannelDetails(Order $order): void
+    {
+        $order->update([
+            'type' => $this->orderType,
+            'source' => $this->orderSource,
+            'external_platform' => in_array($this->orderSource, ['glovo', 'uber_eats'], true) ? $this->orderSource : null,
+            'external_order_id' => $this->externalOrderId,
+            'delivery_status' => $this->orderType === 'delivery' ? ($order->delivery_status ?: 'pending') : null,
+        ]);
+
+        if ($this->orderType !== 'delivery') {
+            $order->delivery()->delete();
+            return;
+        }
+
+        $order->delivery()->updateOrCreate(
+            ['order_id' => $order->id],
+            [
+                'customer_name' => $this->deliveryCustomerName,
+                'customer_phone' => $this->deliveryCustomerPhone,
+                'address_line' => $this->deliveryAddressLine,
+                'city' => $this->deliveryCity,
+                'postal_code' => $this->deliveryPostalCode,
+                'delivery_notes' => $this->deliveryNotes,
+                'scheduled_at' => $this->deliveryScheduledAt ?: null,
+                'delivery_fee' => max(0, (float) $this->deliveryFee),
+                'platform_fee' => max(0, (float) $this->platformFee),
+            ]
+        );
     }
 
     public function setTip(?int $percentage, ?float $amount = null): void
@@ -833,6 +961,7 @@ class PosTerminal extends Component
     public function sendToKitchen(?int $course = null): void
     {
         if (empty($this->cart)) return;
+        if (!$this->validateOrderChannelBeforeKitchen()) return;
 
         $user = auth()->user();
         $restaurantId = $this->restaurantId();
@@ -850,15 +979,21 @@ class PosTerminal extends Component
         }
 
         if (!$this->currentOrderId) {
+            $tableId = $this->orderType === 'dine_in' ? $this->selectedTableId : null;
+
             if ($this->selectedTableId && !$this->findTableForCurrentRestaurant($this->selectedTableId)) {
                 abort(403, 'Mesa no disponible para este restaurante.');
             }
 
             $order = Order::create([
                 'restaurant_id' => $restaurantId,
-                'table_id'      => $this->selectedTableId,
+                'table_id'      => $tableId,
                 'user_id'       => $user->id,
                 'type'          => $this->orderType,
+                'source'        => $this->orderSource,
+                'external_platform' => in_array($this->orderSource, ['glovo', 'uber_eats'], true) ? $this->orderSource : null,
+                'external_order_id' => $this->externalOrderId,
+                'delivery_status' => $this->orderType === 'delivery' ? 'pending' : null,
                 'status'        => 'confirmed',
             ]);
             $this->currentOrderId = $order->id;
@@ -866,6 +1001,8 @@ class PosTerminal extends Component
             $order = $this->findOrderForCurrentRestaurant($this->currentOrderId);
             if (!$order) abort(403, 'Pedido no disponible para este restaurante.');
         }
+
+        $this->persistOrderChannelDetails($order);
 
         $sentCount = 0;
 
@@ -909,6 +1046,7 @@ class PosTerminal extends Component
         }
 
         if ($sentCount > 0) {
+            $this->persistOrderChannelDetails($order);
             $order->recalculateTotals();
 
             // Update table status
@@ -983,7 +1121,7 @@ class PosTerminal extends Component
                 'payment_method'   => $paymentMethod,
                 'reference_type'   => Order::class,
                 'reference_id'     => $order->id,
-                'notes'            => 'Cobro Mesa ' . ($selectedTable?->number ?? 'Barra') . ($tipAmount > 0 ? " (Inc. propina €{$tipAmount})" : ''),
+                'notes'            => 'Cobro ' . $this->orderChannelLabel . ' ' . ($selectedTable?->number ?? $order->external_order_id ?? 'Directo') . ($tipAmount > 0 ? " (Inc. propina €{$tipAmount})" : ''),
             ]);
         }
 
@@ -1027,7 +1165,16 @@ class PosTerminal extends Component
         $this->dispatch('print-receipt', url: route('pos.receipt', $order->id));
 
         // Reset de estado del POS
-        $this->reset(['cart', 'currentOrderId', 'selectedTableId', 'showPaymentModal', 'splitWays', 'tipAmount', 'tipPercentage', 'cashReceived', 'selectedCustomerId', 'pointsToRedeem', 'pointsDiscount']);
+        $this->reset([
+            'cart', 'currentOrderId', 'selectedTableId', 'showPaymentModal',
+            'splitWays', 'tipAmount', 'tipPercentage', 'cashReceived',
+            'selectedCustomerId', 'pointsToRedeem', 'pointsDiscount',
+            'externalOrderId', 'deliveryCustomerName', 'deliveryCustomerPhone',
+            'deliveryAddressLine', 'deliveryCity', 'deliveryPostalCode',
+            'deliveryNotes', 'deliveryScheduledAt', 'deliveryFee', 'platformFee',
+        ]);
+        $this->orderType = 'dine_in';
+        $this->orderSource = 'pos';
         $this->view = 'tables';
         session()->flash('success', '✅ Pago procesado correctamente');
     }
@@ -1035,7 +1182,16 @@ class PosTerminal extends Component
     public function backToTables(): void
     {
         $this->view = 'tables';
-        $this->reset(['cart', 'selectedTableId', 'currentOrderId', 'splitWays', 'showModifierModal', 'selectedDishForModifiers', 'tipAmount', 'tipPercentage', 'cashReceived']);
+        $this->reset([
+            'cart', 'selectedTableId', 'currentOrderId', 'splitWays',
+            'showModifierModal', 'selectedDishForModifiers', 'tipAmount',
+            'tipPercentage', 'cashReceived', 'externalOrderId',
+            'deliveryCustomerName', 'deliveryCustomerPhone', 'deliveryAddressLine',
+            'deliveryCity', 'deliveryPostalCode', 'deliveryNotes',
+            'deliveryScheduledAt', 'deliveryFee', 'platformFee',
+        ]);
+        $this->orderType = 'dine_in';
+        $this->orderSource = 'pos';
     }
 
     public function getActiveDishForModifiersProperty()

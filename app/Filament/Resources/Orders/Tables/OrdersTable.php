@@ -27,6 +27,21 @@ class OrdersTable
                     ->sortable(),
                 TextColumn::make('type')
                     ->badge(),
+                TextColumn::make('source')
+                    ->label('Canal')
+                    ->badge()
+                    ->formatStateUsing(fn (?string $state): string => match ($state) {
+                        'pos' => 'Sala',
+                        'takeaway' => 'Recogida',
+                        'manual_delivery' => 'Reparto',
+                        'glovo' => 'Glovo',
+                        'uber_eats' => 'Uber Eats',
+                        default => $state ?? 'Sala',
+                    }),
+                TextColumn::make('external_order_id')
+                    ->label('Ref. externa')
+                    ->searchable()
+                    ->toggleable(),
                 TextColumn::make('status')
                     ->badge(),
                 TextColumn::make('guests')

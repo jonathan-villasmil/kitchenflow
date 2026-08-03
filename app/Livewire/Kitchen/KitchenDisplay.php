@@ -70,6 +70,7 @@ class KitchenDisplay extends Component
         return Order::with([
                 'table',
                 'user',
+                'delivery',
                 'items' => function ($query) {
                     $query->whereIn('status', ['sent', 'preparing'])
                           ->whereHas('dish', fn ($q) => $q->where('kitchen_station', $this->station))

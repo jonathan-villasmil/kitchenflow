@@ -47,6 +47,30 @@ class OrderForm
                     ->options(['dine_in' => 'Dine in', 'takeaway' => 'Takeaway', 'delivery' => 'Delivery'])
                     ->default('dine_in')
                     ->required(),
+                Select::make('source')
+                    ->label('Canal')
+                    ->options([
+                        'pos' => 'Sala',
+                        'takeaway' => 'Recogida',
+                        'manual_delivery' => 'Reparto propio',
+                        'glovo' => 'Glovo',
+                        'uber_eats' => 'Uber Eats',
+                    ])
+                    ->default('pos')
+                    ->required(),
+                TextInput::make('external_order_id')
+                    ->label('Referencia externa'),
+                Select::make('delivery_status')
+                    ->label('Estado de reparto')
+                    ->options([
+                        'pending' => 'Pendiente',
+                        'accepted' => 'Aceptado',
+                        'preparing' => 'Preparando',
+                        'ready' => 'Listo',
+                        'picked_up' => 'Recogido',
+                        'delivered' => 'Entregado',
+                        'cancelled' => 'Cancelado',
+                    ]),
                 Select::make('status')
                     ->options([
             'pending' => 'Pending',

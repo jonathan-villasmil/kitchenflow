@@ -126,7 +126,7 @@
         <div class="p-6 h-full flex flex-col">
             <div class="flex justify-between items-center mb-6">
                 <div>
-                    <h1 class="text-2xl font-bold">Seleccionar Mesa</h1>
+                    <h1 class="text-2xl font-bold">Seleccionar Mesa o Canal</h1>
                     <div class="flex items-center gap-3 mt-1.5 flex-wrap">
                         <!-- WebSocket Status Indicator -->
                         <span class="inline-flex items-center gap-1.5 text-[10px] font-black uppercase tracking-wider px-2 py-0.5 rounded bg-gray-900 border border-gray-800 transition-all duration-300">
@@ -164,9 +164,14 @@
                     </div>
                 </div>
                 <div class="flex gap-4">
-                    <button wire:click="$set('orderType', 'takeaway')" class="px-4 py-2 rounded-lg {{ $orderType === 'takeaway' ? 'bg-orange-500' : 'bg-gray-800' }}">Para llevar</button>
-                    <button wire:click="$set('orderType', 'delivery')" class="px-4 py-2 rounded-lg {{ $orderType === 'delivery' ? 'bg-orange-500' : 'bg-gray-800' }}">A domicilio</button>
-                    <button wire:click="selectTable(0)" class="px-4 py-2 bg-blue-600 rounded-lg">Sin Mesa (Directo)</button>
+                    <div class="flex gap-2 mr-2 border-r border-gray-700 pr-4">
+                        @foreach($this->orderChannelOptions() as $source => $label)
+                            <button wire:click="setOrderChannel('{{ $source }}')" class="px-3 py-2 rounded-lg text-xs font-bold {{ $orderSource === $source ? 'bg-orange-500 text-white' : 'bg-gray-800 text-gray-300 hover:bg-gray-700' }}">{{ $label }}</button>
+                        @endforeach
+                        @if($orderType !== 'dine_in')
+                            <button wire:click="startDirectOrder" class="px-4 py-2 bg-blue-600 hover:bg-blue-500 rounded-lg font-bold">Abrir Pedido</button>
+                        @endif
+                    </div>
                     @if($this->activeRegister)
                         <div class="flex gap-2 mr-4 border-r border-gray-700 pr-4">
                             <button wire:click="openManualCashModal('cash_in')" class="px-3 py-2 bg-green-900/50 text-green-400 border border-green-700 hover:bg-green-800 rounded-lg font-bold transition flex items-center gap-1"><svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"></path></svg> Ingreso</button>
@@ -226,7 +231,7 @@
             <div class="w-1/3 bg-gray-900 border-r border-gray-800 flex flex-col">
                 <div class="p-4 bg-gray-950 flex justify-between items-center border-b border-gray-800">
                     <div>
-                        <h2 class="font-bold text-lg">Mesa {{ $selectedTableId ? App\Models\Table::find($selectedTableId)->number : '---' }}</h2>
+                        <h2 class="font-bold text-lg">{{ $orderType === 'dine_in' ? 'Mesa '.($selectedTableId ? App\Models\Table::find($selectedTableId)->number : '---') : $this->orderChannelLabel }}</h2>
                         <div class="text-sm text-gray-400">Orden {{ $currentOrderId ? '#'.str_pad($currentOrderId, 5, '0', STR_PAD_LEFT) : 'Nueva' }}</div>
                     </div>
                     <div class="flex gap-2">
@@ -249,6 +254,34 @@
                         </button>
                     </div>
                 </div>
+
+                @if($orderType !== 'dine_in')
+                    <div class="p-3 bg-gray-950 border-b border-gray-800 space-y-3">
+                        <div class="grid grid-cols-2 gap-2">
+                            @foreach($this->orderChannelOptions() as $source => $label)
+                                @if($source !== 'pos')
+                                    <button wire:click="setOrderChannel('{{ $source }}')" class="px-3 py-2 rounded-lg text-xs font-bold {{ $orderSource === $source ? 'bg-orange-500 text-white' : 'bg-gray-800 text-gray-300 hover:bg-gray-700' }}">{{ $label }}</button>
+                                @endif
+                            @endforeach
+                        </div>
+
+                        @if($orderType === 'delivery')
+                            <div class="grid grid-cols-2 gap-2">
+                                <input wire:model.blur="deliveryCustomerName" type="text" class="bg-gray-900 border-gray-700 rounded-lg px-3 py-2 text-sm" placeholder="Nombre cliente">
+                                <input wire:model.blur="deliveryCustomerPhone" type="text" class="bg-gray-900 border-gray-700 rounded-lg px-3 py-2 text-sm" placeholder="Telefono">
+                                <input wire:model.blur="deliveryAddressLine" type="text" class="bg-gray-900 border-gray-700 rounded-lg px-3 py-2 text-sm col-span-2" placeholder="Direccion">
+                                <input wire:model.blur="deliveryCity" type="text" class="bg-gray-900 border-gray-700 rounded-lg px-3 py-2 text-sm" placeholder="Ciudad">
+                                <input wire:model.blur="deliveryPostalCode" type="text" class="bg-gray-900 border-gray-700 rounded-lg px-3 py-2 text-sm" placeholder="Codigo postal">
+                                <input wire:model.live="deliveryFee" type="number" step="0.01" min="0" class="bg-gray-900 border-gray-700 rounded-lg px-3 py-2 text-sm" placeholder="Reparto EUR">
+                                <input wire:model.live="platformFee" type="number" step="0.01" min="0" class="bg-gray-900 border-gray-700 rounded-lg px-3 py-2 text-sm" placeholder="Comision EUR">
+                                @if(in_array($orderSource, ['glovo', 'uber_eats']))
+                                    <input wire:model.blur="externalOrderId" type="text" class="bg-gray-900 border-gray-700 rounded-lg px-3 py-2 text-sm col-span-2" placeholder="Referencia externa">
+                                @endif
+                                <textarea wire:model.blur="deliveryNotes" class="bg-gray-900 border-gray-700 rounded-lg px-3 py-2 text-sm col-span-2" rows="2" placeholder="Notas de entrega"></textarea>
+                            </div>
+                        @endif
+                    </div>
+                @endif
 
                 <div class="flex-1 overflow-y-auto p-2">
                     @forelse($cart as $key => $item)
@@ -519,6 +552,12 @@
                                 
                                 @if($tipAmount > 0)
                                     <div class="text-orange-400 mt-1 font-bold text-xs">+ €{{ number_format($tipAmount, 2) }} Propina</div>
+                                @endif
+                                @if($deliveryFee > 0)
+                                    <div class="text-blue-400 mt-1 font-bold text-xs">+ €{{ number_format($deliveryFee, 2) }} Reparto</div>
+                                @endif
+                                @if($platformFee > 0)
+                                    <div class="text-red-400 mt-1 font-bold text-xs">Comision plataforma: €{{ number_format($platformFee, 2) }}</div>
                                 @endif
                             </div>
 

@@ -6,6 +6,7 @@ use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Illuminate\Database\Eloquent\Model;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\Relations\MorphMany;
 
 class Order extends Model
@@ -14,7 +15,8 @@ class Order extends Model
 
     protected $fillable = [
         'number', 'restaurant_id', 'table_id', 'customer_id', 'user_id',
-        'type', 'status', 'guests', 'subtotal', 'tax_amount',
+        'type', 'source', 'external_platform', 'external_order_id',
+        'status', 'delivery_status', 'guests', 'subtotal', 'tax_amount',
         'discount_amount', 'total', 'tip_amount', 'notes', 'opened_at', 'closed_at',
     ];
 
@@ -71,6 +73,11 @@ class Order extends Model
         return $this->morphMany(CashRegisterTransaction::class, 'reference');
     }
 
+    public function delivery(): HasOne
+    {
+        return $this->hasOne(OrderDelivery::class);
+    }
+
     public function recalculateTotals(): void
     {
         $subtotal = $this->items()
@@ -78,11 +85,12 @@ class Order extends Model
             ->sum('total');
 
         $taxRate = $this->restaurant->tax_rate / 100;
+        $deliveryFee = (float) ($this->delivery?->delivery_fee ?? 0);
 
         $this->update([
             'subtotal' => $subtotal,
             'tax_amount' => $subtotal * $taxRate,
-            'total' => $subtotal + ($subtotal * $taxRate) - $this->discount_amount,
+            'total' => $subtotal + ($subtotal * $taxRate) + $deliveryFee - $this->discount_amount,
         ]);
     }
 }

@@ -3,11 +3,13 @@
 namespace Tests\Feature;
 
 use App\Events\OrderUpdatedForKitchen;
+use App\Events\OrderSentToKitchen;
 use App\Livewire\Pos\PosTerminal;
 use App\Models\Customer;
 use App\Models\Dish;
 use App\Models\MenuCategory;
 use App\Models\Order;
+use App\Models\OrderDelivery;
 use App\Models\OrderItem;
 use App\Models\Restaurant;
 use App\Models\Table;
@@ -276,6 +278,122 @@ class PosTerminalTest extends TestCase
         ]);
     }
 
+    public function test_pos_can_send_manual_delivery_order_to_kitchen(): void
+    {
+        Event::fake([OrderSentToKitchen::class]);
+
+        [$restaurant, , $user] = $this->makeTenantScenario();
+        $dish = $this->makeDish($restaurant);
+
+        Livewire::actingAs($user)
+            ->test(PosTerminal::class)
+            ->call('startDirectOrder', 'manual_delivery')
+            ->set('deliveryCustomerName', 'Cliente Delivery')
+            ->set('deliveryCustomerPhone', '600111222')
+            ->set('deliveryAddressLine', 'Calle Mayor 1')
+            ->set('deliveryCity', 'Madrid')
+            ->set('deliveryPostalCode', '28001')
+            ->set('deliveryFee', 2.5)
+            ->set('cart', [
+                'new_' . $dish->id => [
+                    'order_item_id' => null,
+                    'dish_id' => $dish->id,
+                    'name' => $dish->name,
+                    'unit_price' => 10,
+                    'quantity' => 1,
+                    'notes' => '',
+                    'modifiers' => [],
+                    'course' => 1,
+                    'line_total' => 10,
+                ],
+            ])
+            ->call('sendToKitchen');
+
+        $order = Order::firstOrFail();
+
+        $this->assertSame('delivery', $order->type);
+        $this->assertSame('manual_delivery', $order->source);
+        $this->assertNull($order->table_id);
+        $this->assertSame('pending', $order->delivery_status);
+        $this->assertSame(2.5, (float) $order->delivery->delivery_fee);
+        $this->assertSame('Calle Mayor 1', $order->delivery->address_line);
+
+        Event::assertDispatched(OrderSentToKitchen::class);
+    }
+
+    public function test_platform_delivery_requires_external_reference(): void
+    {
+        Event::fake([OrderSentToKitchen::class]);
+
+        [$restaurant, , $user] = $this->makeTenantScenario();
+        $dish = $this->makeDish($restaurant);
+
+        Livewire::actingAs($user)
+            ->test(PosTerminal::class)
+            ->call('startDirectOrder', 'glovo')
+            ->set('deliveryCustomerName', 'Cliente Glovo')
+            ->set('deliveryCustomerPhone', '600333444')
+            ->set('cart', [
+                'new_' . $dish->id => [
+                    'order_item_id' => null,
+                    'dish_id' => $dish->id,
+                    'name' => $dish->name,
+                    'unit_price' => 10,
+                    'quantity' => 1,
+                    'notes' => '',
+                    'modifiers' => [],
+                    'course' => 1,
+                    'line_total' => 10,
+                ],
+            ])
+            ->call('sendToKitchen');
+
+        $this->assertDatabaseCount('orders', 0);
+        Event::assertNotDispatched(OrderSentToKitchen::class);
+    }
+
+    public function test_pos_can_send_glovo_order_with_external_reference(): void
+    {
+        Event::fake([OrderSentToKitchen::class]);
+
+        [$restaurant, , $user] = $this->makeTenantScenario();
+        $dish = $this->makeDish($restaurant);
+
+        Livewire::actingAs($user)
+            ->test(PosTerminal::class)
+            ->call('startDirectOrder', 'glovo')
+            ->set('deliveryCustomerName', 'Cliente Glovo')
+            ->set('deliveryCustomerPhone', '600333444')
+            ->set('externalOrderId', 'GLOVO-123')
+            ->set('platformFee', 3.25)
+            ->set('cart', [
+                'new_' . $dish->id => [
+                    'order_item_id' => null,
+                    'dish_id' => $dish->id,
+                    'name' => $dish->name,
+                    'unit_price' => 10,
+                    'quantity' => 1,
+                    'notes' => '',
+                    'modifiers' => [],
+                    'course' => 1,
+                    'line_total' => 10,
+                ],
+            ])
+            ->call('sendToKitchen');
+
+        $order = Order::firstOrFail();
+
+        $this->assertSame('glovo', $order->source);
+        $this->assertSame('glovo', $order->external_platform);
+        $this->assertSame('GLOVO-123', $order->external_order_id);
+        $this->assertSame(3.25, (float) $order->delivery->platform_fee);
+
+        Event::assertDispatched(OrderSentToKitchen::class, fn (OrderSentToKitchen $event) =>
+            $event->order->id === $order->id
+                && $event->broadcastWith()['source'] === 'glovo'
+        );
+    }
+
     private function makeTenantScenario(): array
     {
         $restaurant = Restaurant::create(['name' => 'Restaurante A', 'slug' => 'restaurante-a']);
@@ -290,6 +408,26 @@ class PosTerminalTest extends TestCase
         $user->assignRole('camarero');
 
         return [$restaurant, $otherRestaurant, $user];
+    }
+
+    private function makeDish(Restaurant $restaurant): Dish
+    {
+        $category = MenuCategory::create([
+            'restaurant_id' => $restaurant->id,
+            'name' => 'Carta',
+            'sort_order' => 1,
+            'is_active' => true,
+        ]);
+
+        return Dish::create([
+            'restaurant_id' => $restaurant->id,
+            'menu_category_id' => $category->id,
+            'name' => 'Burger',
+            'slug' => 'burger-' . $restaurant->id,
+            'price' => 10,
+            'is_available' => true,
+            'kitchen_station' => 'hot',
+        ]);
     }
 
 }

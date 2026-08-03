@@ -44,6 +44,9 @@ class OrderSentToKitchen implements ShouldBroadcastNow
             'table_number' => $this->order->table?->number ?? 'N/A',
             'items_count' => $this->order->items->count(),
             'is_self_order' => $this->order->user_id === null,
+            'type' => $this->order->type,
+            'source' => $this->order->source ?? 'pos',
+            'external_order_id' => $this->order->external_order_id,
         ];
     }
 }
