@@ -203,6 +203,7 @@
                     <ul class="list-disc pl-5 mt-4 space-y-2">
                         <li><strong>Campana:</strong> Notifica al camarero que la mesa {{ 'X' }} está servida.</li>
                         <li><strong>Tiempos:</strong> El ticket cambia de color si lleva más de 15 minutos en espera.</li>
+                        <li><strong>Anulaciones:</strong> Si un gerente anula desde el TPV un plato ya enviado a cocina, el KDS se actualiza en tiempo real.</li>
                     </ul>
                 </div>
             </section>
@@ -217,6 +218,10 @@
                         <div class="bg-gray-50 p-6 rounded-2xl border border-gray-100">
                             <h4 class="font-bold text-slate-800 mb-3 uppercase text-xs tracking-widest italic">Flujo de Cobro:</h4>
                             <p class="text-sm text-gray-600 leading-relaxed">Al pulsar cobrar, el sistema mostrará el total. Puedes añadir una propina personalizada (5%, 10% o monto manual) antes de seleccionar el método de pago.</p>
+                        </div>
+                        <div class="bg-red-50 p-6 rounded-2xl border border-red-100">
+                            <h4 class="font-bold text-red-800 mb-3 uppercase text-xs tracking-widest italic">Anulaciones con PIN:</h4>
+                            <p class="text-sm text-red-700 leading-relaxed">Si un plato ya fue enviado a cocina, solo puede anularse con PIN de gerente. Cocina recibe el cambio al instante y la comanda se actualiza automaticamente.</p>
                         </div>
                         <div class="p-4 border-2 border-orange-100 rounded-2xl flex gap-4">
                             <div class="bg-orange-500 text-white p-3 rounded-lg flex items-center justify-center">

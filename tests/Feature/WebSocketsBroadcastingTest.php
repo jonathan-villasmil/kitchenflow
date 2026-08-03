@@ -5,6 +5,7 @@ namespace Tests\Feature;
 use App\Events\OrderPaid;
 use App\Events\OrderReadyForPickup;
 use App\Events\OrderSentToKitchen;
+use App\Events\OrderUpdatedForKitchen;
 use App\Models\Order;
 use App\Models\Restaurant;
 use App\Models\User;
@@ -83,6 +84,33 @@ class WebSocketsBroadcastingTest extends TestCase
 
         $paidEvent = new OrderPaid($this->order);
         $this->assertEquals('private-restaurant.' . $this->restaurant1->id, $paidEvent->broadcastOn()[0]->name);
+
+        $updatedEvent = new OrderUpdatedForKitchen($this->order, 'item_cancelled');
+        $this->assertEquals('private-kitchen.' . $this->restaurant1->id, $updatedEvent->broadcastOn()[0]->name);
+    }
+
+    public function test_order_updated_for_kitchen_payload_includes_cancellation_context(): void
+    {
+        $item = \App\Models\OrderItem::create([
+            'order_id' => $this->order->id,
+            'dish_id' => null,
+            'name' => 'Plato anulado',
+            'unit_price' => 10,
+            'quantity' => 1,
+            'total' => 10,
+            'status' => 'cancelled',
+            'course' => 1,
+        ]);
+
+        $event = new OrderUpdatedForKitchen($this->order->fresh(), 'item_cancelled', $item);
+        $payload = $event->broadcastWith();
+
+        $this->assertSame('item_cancelled', $payload['action']);
+        $this->assertSame($this->order->id, $payload['order_id']);
+        $this->assertSame($item->id, $payload['item_id']);
+        $this->assertSame('Plato anulado', $payload['item_name']);
+        $this->assertSame(0, $payload['active_items_count']);
+        $this->assertSame(1, $payload['cancelled_items_count']);
     }
 
     /**

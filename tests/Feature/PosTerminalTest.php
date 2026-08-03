@@ -2,14 +2,18 @@
 
 namespace Tests\Feature;
 
+use App\Events\OrderUpdatedForKitchen;
 use App\Livewire\Pos\PosTerminal;
 use App\Models\Customer;
 use App\Models\Dish;
 use App\Models\MenuCategory;
+use App\Models\Order;
+use App\Models\OrderItem;
 use App\Models\Restaurant;
 use App\Models\Table;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Illuminate\Support\Facades\Event;
 use Livewire\Livewire;
 use Tests\TestCase;
 
@@ -192,6 +196,83 @@ class PosTerminalTest extends TestCase
         ]);
         $this->assertDatabaseMissing('orders', [
             'table_id' => $table->id,
+        ]);
+    }
+
+    public function test_pos_broadcasts_kitchen_update_when_sent_item_is_cancelled(): void
+    {
+        Event::fake([OrderUpdatedForKitchen::class]);
+
+        [$restaurant, , $user] = $this->makeTenantScenario();
+
+        $manager = User::create([
+            'name' => 'Manager PIN',
+            'email' => 'manager-pin@kitchenflow.test',
+            'password' => bcrypt('password'),
+            'restaurant_id' => $restaurant->id,
+            'pin' => '2468',
+        ]);
+        $manager->assignRole('manager');
+
+        $table = Table::create([
+            'restaurant_id' => $restaurant->id,
+            'number' => 'A1',
+            'capacity' => 4,
+            'status' => 'occupied',
+            'is_active' => true,
+        ]);
+
+        $order = Order::create([
+            'restaurant_id' => $restaurant->id,
+            'table_id' => $table->id,
+            'user_id' => $user->id,
+            'type' => 'dine_in',
+            'status' => 'confirmed',
+        ]);
+
+        $item = OrderItem::create([
+            'order_id' => $order->id,
+            'dish_id' => null,
+            'name' => 'Croquetas',
+            'unit_price' => 8,
+            'quantity' => 1,
+            'total' => 8,
+            'status' => 'sent',
+            'course' => 1,
+            'sent_at' => now(),
+        ]);
+
+        Livewire::actingAs($user)
+            ->test(PosTerminal::class)
+            ->set('selectedTableId', $table->id)
+            ->set('currentOrderId', $order->id)
+            ->set('cart', [
+                'item_' . $item->id => [
+                    'order_item_id' => $item->id,
+                    'dish_id' => null,
+                    'name' => 'Croquetas',
+                    'unit_price' => 8,
+                    'quantity' => 1,
+                    'notes' => '',
+                    'modifiers' => [],
+                    'course' => 1,
+                    'line_total' => 8,
+                ],
+            ])
+            ->set('itemKeyToCancel', 'item_' . $item->id)
+            ->set('cancellationPin', '2468')
+            ->call('confirmCancellation');
+
+        Event::assertDispatched(OrderUpdatedForKitchen::class, function (OrderUpdatedForKitchen $event) use ($order, $item) {
+            return $event->order->id === $order->id
+                && $event->item?->id === $item->id
+                && $event->action === 'order_cancelled'
+                && $event->broadcastOn()[0]->name === 'private-kitchen.' . $order->restaurant_id;
+        });
+
+        $this->assertDatabaseHas('order_items', [
+            'id' => $item->id,
+            'status' => 'cancelled',
         ]);
     }
 

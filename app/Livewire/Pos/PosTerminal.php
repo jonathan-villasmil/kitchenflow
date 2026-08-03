@@ -14,6 +14,7 @@ use App\Models\Clocking;
 use App\Models\Customer;
 use App\Models\User;
 use App\Events\OrderPaid;
+use App\Events\OrderUpdatedForKitchen;
 use App\Support\ShiftClockingMatcher;
 use Filament\Notifications\Notification;
 use Illuminate\Support\Facades\Log;
@@ -553,6 +554,8 @@ class PosTerminal extends Component
         if ($manager) {
             $key = $this->itemKeyToCancel;
             $orderItemId = $this->cart[$key]['order_item_id'];
+            $order = null;
+            $cancelledItem = null;
 
             // Update DB: Mark as cancelled instead of deleting for audit
             if ($orderItemId) {
@@ -561,6 +564,8 @@ class PosTerminal extends Component
                 )->find($orderItemId);
                 if ($item) {
                     $item->update(['status' => 'cancelled']);
+                    $cancelledItem = $item->fresh();
+                    $order = $cancelledItem->order;
                 }
             }
 
@@ -575,7 +580,7 @@ class PosTerminal extends Component
             // If cart is empty AND the order has no more active items in DB,
             // cancel the order and free the table.
             if (empty($this->cart) && $this->currentOrderId) {
-                $order = $this->findOrderForCurrentRestaurant($this->currentOrderId);
+                $order = $order ?: $this->findOrderForCurrentRestaurant($this->currentOrderId);
                 
                 if ($order) {
                     $activeItemsCount = $order->items()
@@ -596,6 +601,8 @@ class PosTerminal extends Component
                                 ->update(['status' => 'available']);
                         }
 
+                        $this->broadcastRealtime(new OrderUpdatedForKitchen($order->fresh(), 'order_cancelled', $cancelledItem));
+
                         // Reset POS and go back to table view
                         $this->reset(['cart', 'currentOrderId', 'selectedTableId', 'splitWays', 'tipAmount', 'tipPercentage', 'cashReceived']);
                         $this->view = 'tables';
@@ -608,7 +615,12 @@ class PosTerminal extends Component
                 // Still items remaining — just recalculate totals
                 $order?->recalculateTotals();
             } elseif ($this->currentOrderId) {
-                $this->findOrderForCurrentRestaurant($this->currentOrderId)?->recalculateTotals();
+                $order = $this->findOrderForCurrentRestaurant($this->currentOrderId);
+                $order?->recalculateTotals();
+            }
+
+            if ($order) {
+                $this->broadcastRealtime(new OrderUpdatedForKitchen($order->fresh(), 'item_cancelled', $cancelledItem));
             }
 
             session()->flash('success', '✅ Plato anulado correctamente por ' . $manager->name);

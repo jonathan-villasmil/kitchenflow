@@ -34,6 +34,10 @@
                 .listen('OrderSentToKitchen', (e) => {
                     console.log('Nuevo pedido en tiempo real recibido para KDS:', e);
                     $wire.$refresh();
+                })
+                .listen('OrderUpdatedForKitchen', (e) => {
+                    console.log('Pedido actualizado para KDS:', e);
+                    $wire.$refresh();
                 });
         } else {
             this.webSocketStatus = 'disconnected';
