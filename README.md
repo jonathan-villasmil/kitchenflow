@@ -1,59 +1,119 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+**KitchenFlow** es un sistema de gestión integral para restaurantes, pensado para manejar varios locales desde una misma plataforma, manteniendo separados los datos de cada restaurante.
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+A nivel práctico, el proyecto cubre:
 
-## About Laravel
+‌
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+1. **Panel Administrativo**
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+Es la zona de gestión para managers y super admin.
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+Desde aquí se gestionan:
 
-## Learning Laravel
+- Restaurantes.
+- Usuarios y roles.
+- Empleados.
+- Mesas y zonas.
+- Carta, categorías, platos, modificadores y extras.
+- Inventario.
+- Proveedores.
+- Reservas.
+- Pedidos.
+- Informes de ventas.
+- Reportes y estadísticas.
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework. You can also check out [Laravel Learn](https://laravel.com/learn), where you will be guided through building a modern Laravel application.
+Cada manager ve solo su restaurante.
+El super admin puede ver todos o elegir un restaurante concreto.
 
-If you don't feel like reading, [Laracasts](https://laracasts.com) can help. Laracasts contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+‌
 
-## Laravel Sponsors
+1. **TPV / POS**
 
-We would like to extend our thanks to the following sponsors for funding Laravel development. If you are interested in becoming a sponsor, please visit the [Laravel Partners program](https://partners.laravel.com).
+Es la pantalla de venta para camareros, cajeros o managers.
 
-### Premium Partners
+Permite:
 
-- **[Vehikl](https://vehikl.com)**
-- **[Tighten Co.](https://tighten.co)**
-- **[Kirschbaum Development Group](https://kirschbaumdevelopment.com)**
-- **[64 Robots](https://64robots.com)**
-- **[Curotec](https://www.curotec.com/services/technologies/laravel)**
-- **[DevSquad](https://devsquad.com/hire-laravel-developers)**
-- **[Redberry](https://redberry.international/laravel-development)**
-- **[Active Logic](https://activelogic.com)**
+- Seleccionar mesa.
+- Añadir platos.
+- Mandar platos a cocina.
+- Dividir cuenta.
+- Cobrar en efectivo o tarjeta.
+- Aplicar propinas.
+- Usar clientes/fidelización.
+- Abrir y cerrar caja.
+- Generar tickets y reporte Z.
+- Anular platos con PIN de manager.
 
-## Contributing
+‌
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+1. **KDS / Pantalla de Cocina**
 
-## Code of Conduct
+Es la pantalla para cocina.
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+Muestra:
 
-## Security Vulnerabilities
+- Pedidos enviados desde el POS o menú público.
+- Platos pendientes por estación: caliente, fría, barra, panadería.
+- Tiempos de espera.
+- Estado de conexión en tiempo real.
+- Marcado de platos como listos.
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+Está aislado por restaurante: cocina solo ve pedidos de su local.
 
-## License
+‌
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+1. **Menú Público Digital**
+
+Es el menú al que accede el cliente desde una mesa, probablemente por QR.
+
+Permite:
+
+- Ver categorías y platos disponibles.
+- Añadir platos al carrito.
+- Enviar pedido directamente a cocina.
+- Respetar stock/disponibilidad.
+- Asociar el pedido a la mesa correcta.
+
+También está protegido para que no se puedan pedir platos de otro restaurante manipulando IDs.
+
+‌
+
+1. **Multi-Restaurante**
+
+El sistema usa una sola base de datos, pero separa los datos con `restaurant_id`.
+
+Eso significa:
+
+- Restaurante A tiene sus platos, mesas, pedidos y usuarios.
+- Restaurante B tiene los suyos.
+- Un manager de A no ve datos de B.
+- El super admin puede decidir si ve todo o un restaurante concreto.
+
+‌
+
+1. **Tiempo Real**
+
+Usa Laravel Reverb/WebSockets para avisar en tiempo real:
+
+- Nuevos pedidos a cocina.
+- Pedidos listos para servir.
+- Cambios de stock.
+- Eventos POS/KDS.
+
+Queda justo pendiente cerrar del todo la notificación en tiempo real para anulaciones, que era lo que estábamos haciendo.
+
+‌
+
+1. **Seguridad Y Roles**
+
+Los roles principales son:
+
+- `super_admin`: control global.
+- `manager`: administra su restaurante.
+- `camarero`: usa POS.
+- `cajero`: usa POS/cobro.
+- `cocinero`: usa KDS.
+
+El proyecto ya tiene bastante trabajo hecho para que cada rol entre donde toca.
+
+En resumen: **KitchenFlow es un SaaS/POS multi-restaurante para operar sala, cocina, caja, carta, inventario, reservas e informes desde una sola plataforma, con separación de datos por restaurante y control central para super admin.**
